@@ -59,3 +59,18 @@ Angular and TypeScript best practices.
 - Keep API endpoints in a centralized Angular service layer
 - Prefer returning **observables** from service methods and handle them with the `async` pipe in templates
 - Ensure backend and frontend concerns remain cleanly separated
+
+## Styling
+
+- Use **Tailwind CSS** for all styling
+- Do NOT use Angular’s `ngClass` or `ngStyle`; prefer direct `class` and `style` bindings with Tailwind utilities
+- Do NOT use external CSS frameworks like Bootstrap or Material for styling
+- Keep Tailwind class usage consistent and minimal — avoid overly long class strings when possible
+- Extract reusable style patterns into Tailwind `@apply` rules in a shared styles file if necessary
+- Always prioritize semantic HTML + Tailwind utilities over custom CSS
+
+### Import Guidelines
+
+- **Always use** the `@` alias instead of relative imports
+- **Avoid** brittle relative paths like `../../services/`
+- **Prefer** absolute imports for better refactoring safety
