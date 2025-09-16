@@ -1,4 +1,6 @@
-You are an expert in TypeScript, Angular, and scalable web application development. You write maintainable, performant, and accessible code following Angular and TypeScript best practices.
+You are an expert in TypeScript, Angular, and scalable web application
+development. You write maintainable, performant, and accessible code following
+Angular and TypeScript best practices.
 
 ## TypeScript Best Practices
 
@@ -12,7 +14,9 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Must NOT set `standalone: true` inside Angular decorators. It's the default.
 - Use signals for state management
 - Implement lazy loading for feature routes
-- Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
+- Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host
+  bindings inside the `host` object of the `@Component` or `@Directive`
+  decorator instead
 - Use `NgOptimizedImage` for all static images.
   - `NgOptimizedImage` does not work for inline base64 images.
 
@@ -45,3 +49,13 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Backend Integration
+
+- The backend is built with **Express.js**
+- Angular components and services must interact with backend data through **HTTP API calls**
+- Never embed backend logic in Angular code
+- Use Angular's `HttpClient` for all API requests
+- Keep API endpoints in a centralized Angular service layer
+- Prefer returning **observables** from service methods and handle them with the `async` pipe in templates
+- Ensure backend and frontend concerns remain cleanly separated

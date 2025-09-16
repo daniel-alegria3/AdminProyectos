@@ -49,7 +49,7 @@ userAuth.requireLogin = (req, res, next) => {
 
 userAuth.isLoggedIn = (req, res) => {
     if (req.session[PRIMARY_KEY]) {
-        res.json({ loggedIn: true, [primary_key]: req.session[PRIMARY_KEY] });
+        res.json({ loggedIn: true, [PRIMARY_KEY]: req.session[PRIMARY_KEY] });
     } else {
         res.json({ loggedIn: false });
     }
