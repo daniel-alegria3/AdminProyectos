@@ -1,0 +1,98 @@
+@startuml
+' configuration
+hide circle
+skinparam linetype ortho
+
+'' TABLES
+package "AdminProyectos_BD" {
+  class User {
+    * id_user : int <<PK>>
+    --
+    name : String
+    email : String
+    password : String
+    phone_number : String
+    status : { ENABLED, DISABLED }
+    is_admin : boolean
+  }
+
+
+  class Project {
+    * id_project : int <<PK>>
+    --
+    title : String
+    start_date : DateTime
+    end_date : DateTime
+  }
+
+  class ProjectAssignment {
+    --
+    + id_project : int <<PK, FK>>
+    + id_user : int <<PK, FK>>
+    ' role : { OWNER, MEMBER, REVIEWER }
+  }
+
+
+  class Task {
+    + id_task : int <<PK>>
+    --
+    + id_project : int <<FK>>
+    title : String
+    description: String
+    start_date : DateTime
+    end_date : DateTime
+    status : { \n\tPENDING,\n\tIN_PROGRESS,\n\tCOMPLETED,\n\tCANCELLED,\n }
+  }
+
+  class TaskAssignment {
+    --
+    + id_task : int <<PK, FK>>
+    + id_user : int <<PK, FK>>
+    ' role : { OWNER, MEMBER }
+  }
+
+
+  class File {
+    * id_file : int <<PK>>
+    --
+    name : String
+    data : Blob
+    size : int
+    mime_type : String
+    uploaded_at : DateTime <<auto>>
+  }
+
+  class FileAllowedFormat {
+    * mime_type : String <<PK>>
+    --
+    extension : String
+    description : String
+  }
+
+
+  class ProjectFile {
+    --
+    + id_project : int <<PK, FK>>
+    + id_file : int <<PK, FK>>
+  }
+
+  class TaskFile {
+    --
+    + id_task : int <<PK, FK>>
+    + id_file : int <<PK, FK>>
+  }
+}
+
+'' RELATIONSHIPS
+ProjectAssignment "0..*" --> "1" User
+TaskAssignment "0..*" --> "1" User
+ProjectAssignment "0..*" --> "1" Project
+Task "0..*" --> "1" Project
+ProjectFile "0..*" --> "1" Project
+TaskAssignment "0..*" --> "1" Task
+TaskFile "0..*" --> "1" Task
+ProjectFile "0..*" --> "1" File
+TaskFile "0..*" --> "1" File
+File "*" --> "1" FileAllowedFormat
+
+@enduml
