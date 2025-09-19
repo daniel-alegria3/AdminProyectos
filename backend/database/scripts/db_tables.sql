@@ -5,7 +5,7 @@ CREATE TABLE `User` (
   password varchar(128) NOT NULL,
   phone_number varchar(64),
   status enum('ENABLED', 'DISABLED') DEFAULT 'ENABLED' NOT NULL,
-  is_admin boolean NOT NULL
+  is_admin boolean DEFAULT FALSE NOT NULL
 );
 
 --------------------------------------------------------------------------------
@@ -20,6 +20,7 @@ CREATE TABLE `Project` (
 CREATE TABLE `ProjectAssignment` (
   id_project int, -- <<FK>>
   id_user int, -- <<FK>>
+  status enum('OWNER', 'MEMBER', 'REVIEWER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_project, id_user),
   FOREIGN KEY (id_project) REFERENCES `Project`(id_project),
@@ -44,6 +45,7 @@ CREATE TABLE `Task` (
 CREATE TABLE `TaskAssignment` (
   id_task int, -- <<PK, FK>>
   id_user int, -- <<PK, FK>>
+  status enum('OWNER', 'MEMBER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_task, id_user),
   FOREIGN KEY (id_task) REFERENCES `Task`(id_task),
@@ -52,21 +54,13 @@ CREATE TABLE `TaskAssignment` (
 
 --------------------------------------------------------------------------------
 
-CREATE TABLE `FileAllowedFormats` (
-  mime_type varchar(128) PRIMARY KEY,
-  extension varchar(16) NOT NULL,
-  description varchar(256)
-);
-
 CREATE TABLE `File` (
-  id_file int AUTO_INCREMENT PRIMARY KEY,
+  id_file int PRIMARY KEY AUTO_INCREMENT,
   name varchar(256) NOT NULL,
+  extension varchar(16) NOT NULL,
   data longblob NOT NULL,
   size int UNSIGNED NOT NULL,
-  mime_type varchar(128), -- <<FK>>
-  uploaded_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  FOREIGN KEY (mime_type) REFERENCES `FileAllowedFormats`(mime_type)
+  uploaded_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `ProjectFile` (

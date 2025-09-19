@@ -3,9 +3,12 @@
 hide circle
 skinparam linetype ortho
 
+!define ENTITY_COLOR #ADD1B2
+!define ASSIGNMENT_COLOR #E3E3AE
+
 '' TABLES
 package "AdminProyectos_BD" {
-  class User {
+  class User ENTITY_COLOR {
     * id_user : int <<PK>>
     --
     name : String
@@ -17,7 +20,7 @@ package "AdminProyectos_BD" {
   }
 
 
-  class Project {
+  class Project ENTITY_COLOR {
     * id_project : int <<PK>>
     --
     title : String
@@ -25,15 +28,15 @@ package "AdminProyectos_BD" {
     end_date : DateTime
   }
 
-  class ProjectAssignment {
+  class ProjectAssignment ASSIGNMENT_COLOR {
     --
     + id_project : int <<PK, FK>>
     + id_user : int <<PK, FK>>
-    ' role : { OWNER, MEMBER, REVIEWER }
+    + role : { OWNER, MEMBER, REVIEWER }
   }
 
 
-  class Task {
+  class Task ENTITY_COLOR {
     + id_task : int <<PK>>
     --
     + id_project : int <<FK>>
@@ -44,39 +47,31 @@ package "AdminProyectos_BD" {
     status : { \n\tPENDING,\n\tIN_PROGRESS,\n\tCOMPLETED,\n\tCANCELLED,\n }
   }
 
-  class TaskAssignment {
+  class TaskAssignment ASSIGNMENT_COLOR {
     --
     + id_task : int <<PK, FK>>
     + id_user : int <<PK, FK>>
-    ' role : { OWNER, MEMBER }
+    + role : { OWNER, MEMBER }
   }
 
 
-  class File {
+  class File ENTITY_COLOR {
     * id_file : int <<PK>>
     --
     name : String
+    extension : String
     data : Blob
     size : int
-    mime_type : String
     uploaded_at : DateTime <<auto>>
   }
 
-  class FileAllowedFormat {
-    * mime_type : String <<PK>>
-    --
-    extension : String
-    description : String
-  }
-
-
-  class ProjectFile {
+  class ProjectFile ASSIGNMENT_COLOR {
     --
     + id_project : int <<PK, FK>>
     + id_file : int <<PK, FK>>
   }
 
-  class TaskFile {
+  class TaskFile ASSIGNMENT_COLOR {
     --
     + id_task : int <<PK, FK>>
     + id_file : int <<PK, FK>>
@@ -93,6 +88,5 @@ TaskAssignment "0..*" --> "1" Task
 TaskFile "0..*" --> "1" Task
 ProjectFile "0..*" --> "1" File
 TaskFile "0..*" --> "1" File
-File "*" --> "1" FileAllowedFormat
 
 @enduml
