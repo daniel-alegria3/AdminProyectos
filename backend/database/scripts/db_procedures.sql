@@ -74,6 +74,90 @@ BEGIN
 END; //
 
 --------------------------------------------------------------------------------
+
+CREATE PROCEDURE UpdateUser(
+    IN p_user_id INT,
+    IN p_requesting_user_id INT,
+    IN p_name VARCHAR(128),
+    IN p_email VARCHAR(128),
+    IN p_phone_number VARCHAR(64),
+    IN p_account_status VARCHAR(16)
+)
+BEGIN
+  -- TODO: I won't audit this gpt code. I'm tired boss
+
+  DECLARE v_is_admin BOOLEAN DEFAULT FALSE;
+  DECLARE v_target_is_admin BOOLEAN DEFAULT FALSE;
+
+  -- Intercept invalid ENUM value for account_status
+  DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  BEGIN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Invalid account_status: must be ENABLED or DISABLED';
+  END;
+
+  -- Intercept duplicate email error
+  DECLARE EXIT HANDLER FOR 1062  -- ER_DUP_ENTRY
+  BEGIN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Email address already exists';
+  END;
+
+  -- Check if requesting user exists and get admin status
+  SELECT is_admin
+    INTO v_is_admin
+    FROM `User`
+    WHERE id_user = p_requesting_user_id
+    AND account_status = 'ENABLED'
+    LIMIT 1;
+
+  IF v_is_admin IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Requesting user not found or account disabled';
+  END IF;
+
+  -- Check if target user exists and get admin status
+  SELECT is_admin
+    INTO v_target_is_admin
+    FROM `User`
+    WHERE id_user = p_user_id
+    LIMIT 1;
+
+  IF v_target_is_admin IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Target user not found';
+  END IF;
+
+  -- Authorization logic:
+  -- Users can only update themselves (except admin status)
+  -- Admins can update any user
+  -- Only admins can change admin status
+  IF p_requesting_user_id <> p_user_id AND NOT v_is_admin THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'You can only update your own profile unless you are an admin';
+  END IF;
+
+  -- Prevent non-admins from changing admin status
+  IF p_requesting_user_id <> p_user_id AND NOT v_is_admin AND p_account_status IS NOT NULL THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only admins can change account status';
+  END IF;
+
+  -- Update the user (using COALESCE to only update non-NULL parameters)
+  UPDATE `User` SET
+    name = COALESCE(p_name, name),
+    email = COALESCE(p_email, email),
+    phone_number = COALESCE(p_phone_number, phone_number),
+    account_status = COALESCE(p_account_status, account_status)
+  WHERE id_user = p_user_id;
+
+  IF ROW_COUNT() = 0 THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'User update failed';
+  END IF;
+END; //
+
+--------------------------------------------------------------------------------
 --- PROJECT PROCEDURES
 --------------------------------------------------------------------------------
 
