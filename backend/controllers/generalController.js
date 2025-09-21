@@ -19,6 +19,115 @@ const handleError = (res, error) => {
 };
 
 const userController = {
+  createUser: async (req, res) => {
+    try {
+      const { name, email, password, phone_number, is_admin } = req.body;
+      const requesting_user_id = req.session.user_id;
+
+      if (!name || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nombre, email y contraseña son requeridos',
+        });
+      }
+
+      const [rows] = await db.execute('CALL CreateUser(?, ?, ?, ?, ?, ?)', [
+        name,
+        email,
+        password,
+        phone_number || null,
+        is_admin || false,
+        parseInt(requesting_user_id),
+      ]);
+
+      res.status(201).json({
+        success: true,
+        message: 'Usuario creado exitosamente',
+        data: rows[0][0],
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  updateUser: async (req, res) => {
+    try {
+      const { user_id, name, email, phone_number, account_status } = req.body;
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL UpdateUser(?, ?, ?, ?, ?, ?)', [
+        parseInt(user_id),
+        parseInt(requesting_user_id),
+        name || null,
+        email || null,
+        phone_number || null,
+        account_status || null,
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Usuario actualizado exitosamente',
+        data: rows[0][0],
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  deleteUser: async (req, res) => {
+    try {
+      const { user_id } = req.body;
+      const requesting_user_id = req.session.user_id;
+
+      // Validate required parameters
+      if (!user_id) {
+        return res.status(400).json({ success: false, message: 'ID de usuario es requerido' });
+      }
+
+      // Prevent self-deletion
+      if (parseInt(user_id) === parseInt(requesting_user_id)) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'No puedes eliminar tu propia cuenta' });
+      }
+
+      // Call stored procedure to delete user
+      const [rows] = await db.execute('CALL DeleteUser(?, ?)', [
+        parseInt(user_id),
+        parseInt(requesting_user_id),
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Usuario eliminado exitosamente',
+        data: {
+          deleted_user_id: parseInt(user_id),
+        },
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+  //------------------------------------------------------------------------------
+
+  updateUserStatus: async (req, res) => {
+    try {
+      const { user_id, account_status } = req.body;
+
+      if ((!user_id, !account_status)) {
+        return res.status(400).json({ success: false, error: 'missing paramemeters' });
+      }
+
+      const [rows] = await db.execute('CALL UpdateUserStatus(?, ?)', [user_id, account_status]);
+      res.json({
+        success: true,
+        message: 'Estado de usuario actualizado exitosamente',
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
   getAllUsers: async (req, res) => {
     try {
       const [rows] = await db.execute(
@@ -57,18 +166,29 @@ const userController = {
     }
   },
 
-  updateUserStatus: async (req, res) => {
+  updateMyUser: async (req, res) => {
     try {
-      const { user_id, account_status } = req.body;
+      const { name, email, phone_number } = req.body;
+      const requesting_user_id = req.session.user_id;
 
-      if ((!user_id, !account_status)) {
-        return res.status(400).json({ success: false, error: 'missing paramemeters' });
-      }
+      // For self-update, user_id and requesting_user_id are the same
+      // Also, don't allow account_status changes in self-update
+      const [rows] = await db.execute('CALL UpdateUser(?, ?, ?, ?, ?, ?)', [
+        parseInt(requesting_user_id),
+        parseInt(requesting_user_id),
+        name || null,
+        email || null,
+        phone_number || null,
+        null, // Don't allow self account_status changes
+      ]);
 
-      const [rows] = await db.execute('CALL UpdateUserStatus(?, ?)', [user_id, account_status]);
       res.json({
         success: true,
-        message: 'Estado de usuario actualizado exitosamente',
+        message: 'Detalles del usuario actualizados exitosamente',
+        data: {
+          user_id: parseInt(requesting_user_id),
+          data: rows[0][0],
+        },
       });
     } catch (error) {
       handleError(res, error);
@@ -156,7 +276,7 @@ const userController = {
       const [rows] = await db.execute('CALL GetAllProjects(?)', [null]);
       res.json({
         success: true,
-        message: 'Projectos recuperados exitosamente',
+        message: 'Proyectos recuperados exitosamente',
         data: rows[0],
       });
     } catch (error) {
@@ -185,7 +305,7 @@ const userController = {
 
       res.json({
         success: true,
-        message: 'Detalles del projecto recuperados exitosamente',
+        message: 'Detalles del proyecto recuperados exitosamente',
         data: rows[0],
       });
     } catch (error) {
@@ -206,7 +326,7 @@ const userController = {
       ]);
       res.json({
         success: true,
-        message: 'Tareas de projecto recuperados exitosamente',
+        message: 'Tareas de proyecto recuperados exitosamente',
         data: rows[0],
       });
     } catch (error) {
@@ -223,15 +343,13 @@ const userController = {
       const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [project_id, filter_user_id]);
       res.json({
         success: true,
-        message: 'Mis tareas de projecto recuperados exitosamente',
+        message: 'Mis tareas de proyecto recuperados exitosamente',
         data: rows[0],
       });
     } catch (error) {
       handleError(res, error);
     }
   },
-
-  //------------------------------------------------------------------------------
 
   createTask: async (req, res) => {
     try {
@@ -304,8 +422,7 @@ const userController = {
 
   updateTaskStatus: async (req, res) => {
     try {
-      const { task_id } = req.params;
-      const { progress_status } = req.body;
+      const { task_id, progress_status } = req.body;
 
       if (!progress_status) {
         return res.status(400).json({ success: false, error: 'missing paramemeters' });
@@ -325,8 +442,7 @@ const userController = {
 
   assignUserToTask: async (req, res) => {
     try {
-      const { task_id } = req.params;
-      const { user_id, status } = req.body;
+      const { task_id, user_id, status } = req.body;
 
       if (!user_id) {
         return res.status(400).json({ error: 'User ID is required' });

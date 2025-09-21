@@ -15,12 +15,17 @@ router.get('/user/is_admin', userAuth.requireLogin, userAuth.isAdmin);
 
 const generalController = require('../controllers/generalController');
 
+/// '/admin'
+router.post('/admin/user', userAuth.requireAdmin, generalController.createUser);
+router.patch('/admin/user', userAuth.requireAdmin, generalController.updateUser);
+router.delete('/admin/user', userAuth.requireAdmin, generalController.deleteUser);
+router.patch('/admin/user/account_status', userAuth.requireAdmin, generalController.updateUserStatus);
+// router.patch('/admin/user/make_admin', userAuth.requireAdmin, generalController.xxx); // TODO: implementar
+
 /// '/user'
 router.get('/user', userAuth.requireLogin, generalController.getAllUsers);
 router.get('/user/:user_id', userAuth.requireLogin, generalController.getUserDetails);
-
-/// '/admin'
-router.patch('/admin/account_status', userAuth.requireLogin, generalController.updateUserStatus);
+router.patch('/user', userAuth.requireLogin, generalController.updateMyUser);
 
 /// '/project'
 router.post('/project', userAuth.requireLogin, generalController.createProject);
@@ -40,10 +45,12 @@ router.get('/project/:project_id/tasks/mine', userAuth.requireLogin, generalCont
 
 /// '/task'
 router.post('/tasks', userAuth.requireLogin, generalController.createTask);
+router.post('/task/assign', userAuth.requireLogin, generalController.assignUserToTask);
+router.patch('/task/assign', userAuth.requireLogin, generalController.assignUserToTask);
+router.patch('/tasks/progress_status', userAuth.requireLogin, generalController.updateTaskStatus);
+
 router.get('/tasks', userAuth.requireLogin, generalController.getUserTasks);
 router.get('/tasks/:task_id', userAuth.requireLogin, generalController.getTaskDetails);
-router.patch('/tasks/:task_id/status', userAuth.requireLogin, generalController.updateTaskStatus);
-router.post('/task/:task_id/assign', userAuth.requireLogin, generalController.assignUserToTask);
 
 /// '/file'
 // TODO: implement
