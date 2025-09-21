@@ -12,13 +12,8 @@ app.use(cors({
 // Init Middleware
 app.use(express.json());
 
-// Define Routes
-app.get('/api/message', (req, res) => {
-  res.json({ message: 'Hello from Express!' });
-});
-
 // Rutas API
-app.use('/api/user', require('./routes/userRoutes'));
+app.use('/', require('./routes/generalRoutes'));
 
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;

@@ -1,4 +1,4 @@
-const pool = require('../database/db');
+const db = require('../database/db');
 
 const userController = {
   Ejemplo: async (req, res) => {

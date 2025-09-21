@@ -10,9 +10,9 @@ router.post('/login', auth.login);
 router.get('/logged_in', auth.isLoggedIn);
 router.post('/logout', auth.requireLogin, auth.logout);
 
-const userController = require('../controllers/userController.js')
+const generalController = require('../controllers/generalController.js')
 // TODO: implementear funciones
-router.post('/ejemplo', auth.requireLogin, userController.Ejemplo);
+router.post('/ejemplo', auth.requireLogin, generalController.Ejemplo);
 
 module.exports = router;
 
