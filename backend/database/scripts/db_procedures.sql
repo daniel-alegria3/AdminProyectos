@@ -150,6 +150,18 @@ CREATE PROCEDURE AssignUserToProject(
 BEGIN
   DECLARE v_role VARCHAR(16);
 
+  -- Handler for repeated entry in ProjectAssignment
+  DECLARE EXIT HANDLER FOR 1062
+  BEGIN
+    IF p_role IS NOT NULL THEN
+      UPDATE ProjectAssignment SET role = p_role
+        WHERE id_project = p_project_id AND id_user = p_assigned_user_id;
+    ELSE
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No update performed: role not provided';
+    END IF;
+  END;
+
   -- Intercept invalid ENUM value
   DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   BEGIN
@@ -196,6 +208,7 @@ BEGIN
   SELECT
     p.*,
     pa.role,
+    COUNT(DISTINCT pa.id_user) AS member_count,
     COUNT(DISTINCT t.id_task) AS task_count,
     COUNT(DISTINCT pf.id_file) AS file_count
   FROM Project p
@@ -205,7 +218,7 @@ BEGIN
   LEFT JOIN ProjectFile pf ON p.id_project = pf.id_project
   WHERE
     CASE
-      WHEN p_user_id IS NULL THEN p.visibility = 'PUBLIC'
+      WHEN p_user_id IS NULL THEN p.visibility = 'PUBLIC' -- TODO: integrate `visibility` check in rest of SP
       ELSE pa.id_user = p_user_id
     END
   GROUP BY p.id_project, pa.role
@@ -218,25 +231,43 @@ CREATE PROCEDURE GetProjectDetails(
   in p_project_id int
 )
 BEGIN
+  -- TODO: have rule so only 'OWNER'|'MEMBER' get project details?
+
+  DECLARE v_members JSON;
+  DECLARE v_files   JSON;
+
+  -- Members (guaranteed at least 1)
+  SELECT
+    JSON_ARRAYAGG(
+      JSON_OBJECT( 'id_user', u.id_user, 'name', u.name, 'email', u.email, 'role', pa.role)
+    )
+    INTO v_members
+    FROM ProjectAssignment pa
+    JOIN `User` u ON pa.id_user = u.id_user
+    WHERE pa.id_project = p_project_id;
+
+  -- Files (maybe none)
+  SELECT
+    COALESCE(
+      JSON_ARRAYAGG(
+        JSON_OBJECT( 'file_id', f.id_file, 'filename', CONCAT(f.name, '.', f.extension), 'size', f.size)), JSON_ARRAY()
+    )
+    INTO v_files
+    FROM ProjectFile pf
+    JOIN `File` f ON f.id_file = pf.id_file
+    WHERE pf.id_project = p_project_id;
+
+  -- Final select (1 row)
   SELECT
     p.id_project,
     p.title,
     p.visibility,
     p.start_date,
     p.end_date,
-    JSON_ARRAYAGG(
-      JSON_OBJECT(
-        'id_user', u.id_user,
-        'name', u.name,
-        'email', u.email,
-        'role', pa.role
-      )
-    ) AS members
+    v_members AS members,
+    v_files   AS files
     FROM Project p
-    JOIN ProjectAssignment pa ON p.id_project = pa.id_project
-    JOIN `User` u ON pa.id_user = u.id_user
-    WHERE p.id_project = p_project_id
-    GROUP BY p.id_project;
+    WHERE p.id_project = p_project_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -253,6 +284,8 @@ CREATE PROCEDURE CreateTask(
   in p_assigned_role varchar(16)
 )
 BEGIN
+  -- TODO: have rule so only 'OWNER'|'MEMBER' create task?
+
   DECLARE v_task_id int;
 
   -- Create task
@@ -278,6 +311,54 @@ BEGIN
   END IF;
 
   SELECT v_task_id as task_id;
+END; //
+
+--------------------------------------------------------------------------------
+
+DELIMITER //
+
+CREATE PROCEDURE GetTaskDetails (
+  in p_task_id int
+)
+BEGIN
+  -- TODO: have rule so only 'OWNER'|'MEMBER' get task details?
+
+  DECLARE v_members JSON;
+  DECLARE v_files   JSON;
+
+  -- Members (could be 0)
+  SELECT
+    COALESCE(
+      JSON_ARRAYAGG(
+        JSON_OBJECT( 'user_id', u.id_user, 'name', u.name, 'is_enabled', u.account_status = 'ENABLED')
+      ), JSON_ARRAY()
+    )
+    INTO v_members
+    FROM TaskAssignment ta
+    JOIN `User` u ON ta.id_user = u.id_user
+    WHERE ta.id_task = p_task_id;
+
+  -- Files (could be 0)
+  SELECT
+    COALESCE(
+      JSON_ARRAYAGG(
+        JSON_OBJECT( 'file_id', f.id_file, 'filename', CONCAT(f.name, '.', f.extension), 'size', f.size)
+      ), JSON_ARRAY()
+    )
+    INTO v_files
+    FROM TaskFile tf
+    JOIN `File` f ON f.id_file = tf.id_file
+    WHERE tf.id_task = p_task_id;
+
+  -- Final row
+  SELECT
+    t.*,
+    v_members AS members,
+    v_files   AS files,
+    p.title   AS project_title
+    FROM Task t
+    JOIN Project p ON t.id_project = p.id_project
+    WHERE t.id_task = p_task_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -326,10 +407,10 @@ BEGIN
     AND id_user = p_user_id
     LIMIT 1;
 
-  -- IF v_role IS NULL OR v_role <> 'OWNER' THEN
-  --   SIGNAL SQLSTATE '45000'
-  --   SET MESSAGE_TEXT = 'Only project owners can update project details';
-  -- END IF;
+  IF v_role IS NULL OR v_role <> 'OWNER' THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners can update project details';
+  END IF;
 
   -- Attempt to insert new assignment
   IF p_role IS NOT NULL THEN
@@ -360,6 +441,60 @@ BEGIN
   UPDATE Task
     SET progress_status = p_progress_status
     WHERE id_task = p_task_id;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE GetTasksByUser (
+  in p_user_id int,
+  in p_filter_project_id int -- NULL to see all tasks for user
+)
+BEGIN
+  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
+  SELECT
+    t.*,
+    COUNT(DISTINCT u.id_user) AS member_count,
+    COUNT(DISTINCT tf.id_file) AS file_count,
+    p.title AS project_title
+    FROM Task t
+    INNER JOIN TaskAssignment ta_self
+      ON t.id_task = ta_self.id_task
+      AND ta_self.id_user = p_user_id
+    LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
+    LEFT JOIN `User` u ON ta.id_user = u.id_user
+    LEFT JOIN TaskFile tf ON t.id_task = tf.id_task
+    INNER JOIN Project p ON t.id_project = p.id_project
+    WHERE p_filter_project_id IS NULL OR t.id_project = p_filter_project_id
+    GROUP BY t.id_task
+    ORDER BY t.progress_status, t.start_date, t.title;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE GetTasksByProject (
+  in p_project_id int,
+  in p_filter_user_id int -- NULL to see all tasks for project
+)
+BEGIN
+  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
+  SELECT
+    t.*,
+    COUNT(DISTINCT u.id_user) AS member_count,
+    COUNT(DISTINCT tf.id_file) AS file_count
+    FROM Task t
+    LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
+    LEFT JOIN `User` u ON ta.id_user = u.id_user
+    LEFT JOIN TaskFile tf ON t.id_task = tf.id_task
+    WHERE t.id_project = p_project_id
+    AND (p_filter_user_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM TaskAssignment ta_exists
+        WHERE ta_exists.id_task = t.id_task
+        AND ta_exists.id_user = p_filter_user_id
+    ))
+    GROUP BY t.id_task
+    ORDER BY t.progress_status, t.start_date, t.title;
 END; //
 
 --------------------------------------------------------------------------------
@@ -424,75 +559,18 @@ END; //
 --- UTILITY PROCEDURES
 --------------------------------------------------------------------------------
 
-CREATE PROCEDURE GetTasksByUser (
-  in p_user_id int,
-  in p_filter_project_id int -- NULL to see all tasks for user
-)
-BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
-  SELECT
-    t.*,
-    JSON_ARRAYAGG(
-      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'is_enabled', u.account_status = 'ENABLED')
-    ) AS members,
-    COUNT(DISTINCT tf.id_file) AS file_count,
-    p.title AS project_title
-    FROM Task t
-    INNER JOIN TaskAssignment ta_self
-      ON t.id_task = ta_self.id_task
-      AND ta_self.id_user = p_user_id
-    LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
-    LEFT JOIN `User` u ON ta.id_user = u.id_user
-    LEFT JOIN TaskFile tf ON t.id_task = tf.id_task
-    INNER JOIN Project p ON t.id_project = p.id_project
-    WHERE p_filter_project_id IS NULL OR t.id_project = p_filter_project_id
-    GROUP BY t.id_task
-    ORDER BY t.progress_status, t.start_date, t.title;
-END; //
-
---------------------------------------------------------------------------------
-
-CREATE PROCEDURE GetTasksByProject (
-  in p_project_id int,
-  in p_filter_user_id int -- NULL to see all tasks for project
-)
-BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
-  SELECT
-    t.*,
-    JSON_ARRAYAGG(
-      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'is_enabled', u.account_status = 'ENABLED')
-    ) AS members,
-    COUNT(DISTINCT tf.id_file) AS file_count
-    FROM Task t
-    LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
-    LEFT JOIN `User` u ON ta.id_user = u.id_user
-    LEFT JOIN TaskFile tf ON t.id_task = tf.id_task
-    WHERE t.id_project = p_project_id
-    AND (p_filter_user_id IS NULL
-      OR EXISTS (
-        SELECT 1
-        FROM TaskAssignment ta_exists
-        WHERE ta_exists.id_task = t.id_task
-        AND ta_exists.id_user = p_filter_user_id
-    ))
-    GROUP BY t.id_task
-    ORDER BY t.progress_status, t.start_date, t.title;
-END; //
-
---------------------------------------------------------------------------------
-
 CREATE PROCEDURE GetTaskFilenames (
-    IN p_id_task INT
+  IN p_id_task INT
 )
 BEGIN
-    SELECT
-        f.id_file,
-        CONCAT(f.name, '.', f.extension) AS filename,
-        f.name,
-        f.extension,
-        f.size,
-        f.uploaded_at
+  -- TODO: made reduntant to GetTaskDetails
+  SELECT
+    f.id_file,
+    CONCAT(f.name, '.', f.extension) AS filename,
+    f.name,
+    f.extension,
+    f.size,
+    f.uploaded_at
     FROM TaskFile tf
     JOIN `File` f ON tf.id_file = f.id_file
     WHERE p_id_task IS NULL OR tf.id_task = p_id_task;
@@ -504,13 +582,14 @@ CREATE PROCEDURE GetProjectFilenames (
     IN p_id_project INT
 )
 BEGIN
-    SELECT
-        f.id_file,
-        CONCAT(f.name, '.', f.extension) AS filename,
-        f.name,
-        f.extension,
-        f.size,
-        f.uploaded_at
+  -- TODO: made reduntant to GetProjectDetails
+  SELECT
+    f.id_file,
+    CONCAT(f.name, '.', f.extension) AS filename,
+    f.name,
+    f.extension,
+    f.size,
+    f.uploaded_at
     FROM ProjectFile pf
     JOIN `File` f ON pf.id_file = f.id_file
     WHERE p_id_project IS NULL OR pf.id_project = p_id_project;

@@ -100,12 +100,12 @@ CALL UpdateTaskStatus(@task_schema, 'COMPLETED'); -- Schema Analysis completed
 -- Test AssignUserToTask procedure using captured task IDs
 SELECT 'Testing AssignUserToTask procedure:' AS info;
 
-CALL AssignUserToTask(@task_testing, 1, 1, 'MEMBER');
-CALL AssignUserToTask(@task_android, 2, 1, 'MEMBER');
-CALL AssignUserToTask(@task_validation, 3, 4, 'MEMBER');
-CALL AssignUserToTask(@task_ui_ux, 1, 2, 'MEMBER');
+CALL AssignUserToTask(@task_testing, 4, 1, 'MEMBER');
+CALL AssignUserToTask(@task_android, 5, 1, 'MEMBER');
+CALL AssignUserToTask(@task_validation, 4, 4, 'MEMBER');
+CALL AssignUserToTask(@task_ui_ux, 3, 2, 'MEMBER');
 -- CALL AssignUserToTask(@task_ios, 2, 3, NULL); -- no update cause no `role` provided
-CALL AssignUserToTask(@task_android, 2, 5, 'MEMBER');
+CALL AssignUserToTask(@task_android, 5, 5, 'MEMBER');
 
 -- Display captured task IDs for verification
 SELECT 'Captured Task IDs:' AS info;
@@ -152,7 +152,7 @@ CALL AttachFileToProject(1, 1); -- project_requirements.pdf to Website Redesign
 CALL AttachFileToProject(1, 2); -- wireframes.png to Website Redesign
 CALL AttachFileToProject(2, 4); -- api_documentation.docx to Mobile App
 CALL AttachFileToProject(2, 6); -- app_mockups.jpg to Mobile App
-CALL AttachFileToProject(3, 3); -- database_diagram.png to Database Migration
+-- CALL AttachFileToProject(3, 3); -- database_diagram.png to Database Migration
 
 -- Test AttachFileToTask procedure
 CALL AttachFileToTask(1, 2); -- wireframes.png to UI/UX Design task
@@ -162,13 +162,8 @@ CALL AttachFileToTask(6, 6); -- app_mockups.jpg to iOS Development task
 CALL AttachFileToTask(9, 3); -- database_diagram.png to Schema Analysis task
 
 -- Test GetTaskFilenames procedure
-SELECT 'Files attached to UI/UX Design task (task_id=1):' AS info;
 CALL GetTaskFilenames(1);
-
-SELECT 'Files attached to Testing & QA task (task_id=4):' AS info;
 CALL GetTaskFilenames(4);
-
-SELECT 'All task files:' AS info;
 CALL GetTaskFilenames(NULL);
 
 -- Verify files
@@ -258,38 +253,26 @@ SELECT 'Task Assignments:', COUNT(*) FROM TaskAssignment;
 
 -- Test GetAllProjects procedure
 SELECT 'Testing GetAllProjects procedure:' AS info;
-
-SELECT 'All projects visible to Alice (user_id=1):' AS info;
 CALL GetAllProjects(1);
-
-SELECT 'All projects visible to Carol (user_id=3):' AS info;
 CALL GetAllProjects(3);
-
-SELECT 'All public projects (anonymous access):' AS info;
 CALL GetAllProjects(NULL);
 
 -- Test GetProjectDetails procedure
 SELECT 'Testing GetProjectDetails procedure:' AS info;
-
-SELECT 'Details for Website Redesign project (project_id=1):' AS info;
 CALL GetProjectDetails(1);
-
-SELECT 'Details for Mobile App Development project (project_id=2):' AS info;
 CALL GetProjectDetails(2);
-
-SELECT 'Details for Database Migration project (project_id=3):' AS info;
 CALL GetProjectDetails(3);
+
+-- Test GetTaskDetails procedure
+SELECT 'Testing GetTaskDetails procedure:' AS info;
+CALL GetTaskDetails(1);
+CALL GetTaskDetails(2);
+CALL GetTaskDetails(3);
 
 -- Test GetProjectFilenames procedure
 SELECT 'Testing GetProjectFilenames procedure:' AS info;
-
-SELECT 'Files in Website Redesign project (project_id=1):' AS info;
 CALL GetProjectFilenames(1);
-
-SELECT 'Files in Mobile App Development project (project_id=2):' AS info;
 CALL GetProjectFilenames(2);
-
-SELECT 'Files in Database Migration project (project_id=3):' AS info;
 CALL GetProjectFilenames(3);
 
 SELECT 'All project files:' AS info;
