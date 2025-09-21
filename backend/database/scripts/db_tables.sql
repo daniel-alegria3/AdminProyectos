@@ -4,7 +4,7 @@ CREATE TABLE `User` (
   email varchar(128) NOT NULL UNIQUE,
   password varchar(128) NOT NULL,
   phone_number varchar(64),
-  status enum('ENABLED', 'DISABLED') DEFAULT 'ENABLED' NOT NULL,
+  account_status enum('ENABLED', 'DISABLED') DEFAULT 'ENABLED' NOT NULL,
   is_admin boolean DEFAULT FALSE NOT NULL
 );
 
@@ -13,6 +13,7 @@ CREATE TABLE `User` (
 CREATE TABLE `Project` (
   id_project int PRIMARY KEY AUTO_INCREMENT,
   title varchar(256) NOT NULL,
+  visibility enum('PUBLIC', 'PRIVATE') DEFAULT 'PUBLIC' NOT NULL,
   start_date datetime,
   end_date datetime
 );
@@ -20,7 +21,7 @@ CREATE TABLE `Project` (
 CREATE TABLE `ProjectAssignment` (
   id_project int, -- <<FK>>
   id_user int, -- <<FK>>
-  status enum('OWNER', 'MEMBER', 'REVIEWER') DEFAULT 'MEMBER' NOT NULL,
+  role enum('OWNER', 'MEMBER', 'REVIEWER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_project, id_user),
   FOREIGN KEY (id_project) REFERENCES `Project`(id_project),
@@ -36,7 +37,7 @@ CREATE TABLE `Task` (
   description VARCHAR(256),
   start_date datetime,
   end_date datetime,
-  status enum('PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')
+  progress_status enum('PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')
     DEFAULT 'PENDING' NOT NULL,
 
   FOREIGN KEY (id_project) REFERENCES Project(id_project)
@@ -45,7 +46,7 @@ CREATE TABLE `Task` (
 CREATE TABLE `TaskAssignment` (
   id_task int, -- <<PK, FK>>
   id_user int, -- <<PK, FK>>
-  status enum('OWNER', 'MEMBER') DEFAULT 'MEMBER' NOT NULL,
+  role enum('OWNER', 'MEMBER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_task, id_user),
   FOREIGN KEY (id_task) REFERENCES `Task`(id_task),

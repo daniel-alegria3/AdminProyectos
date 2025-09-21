@@ -28,26 +28,26 @@ CALL UpdateUserStatus(6, 'DISABLED'); -- Disable Frank Wilson
 
 -- Verify users created
 SELECT 'Users created:' AS info;
-SELECT id_user, name, email, status, is_admin FROM User ORDER BY id_user;
+SELECT id_user, name, email, account_status, is_admin FROM User ORDER BY id_user;
 
 --------------------------------------------------------------------------------
 -- TEST PROJECT PROCEDURES
 --------------------------------------------------------------------------------
 
 -- Test CreateProject procedure
-CALL CreateProject('Website Redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00', 1); -- Alice as creator
-CALL CreateProject('Mobile App Development', '2024-02-01 08:00:00', '2024-06-30 18:00:00', 2); -- Bob as creator
-CALL CreateProject('Database Migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00', 1); -- Alice as creator
+CALL CreateProject(1, 'Website Redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00'); -- Alice as creator
+CALL CreateProject(2, 'Mobile App Development', '2024-02-01 08:00:00', '2024-06-30 18:00:00'); -- Bob as creator
+CALL CreateProject(1, 'Database Migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00'); -- Alice as creator
 
 -- Test AssignUserToProject procedure
-CALL AssignUserToProject(1, 3, "OWNER"); -- Assign Carol to Website Redesign
-CALL AssignUserToProject(1, 4, "MEMBER"); -- Assign David to Website Redesign
+CALL AssignUserToProject(1, 1, 3, "OWNER"); -- Assign Carol to Website Redesign
+CALL AssignUserToProject(1, 1, 4, "MEMBER"); -- Assign David to Website Redesign
 
-CALL AssignUserToProject(2, 3, "MEMBER"); -- Assign Carol to Mobile App
-CALL AssignUserToProject(2, 5, "REVIEWER"); -- Assign Eve to Mobile App
+CALL AssignUserToProject(2, 2, 3, "MEMBER"); -- Assign Carol to Mobile App
+CALL AssignUserToProject(2, 2, 5, "REVIEWER"); -- Assign Eve to Mobile App
 
-CALL AssignUserToProject(3, 2, "MEMBER"); -- Assign Bob to Database Migration
-CALL AssignUserToProject(3, 4, "MEMBER"); -- Assign David to Database Migration
+CALL AssignUserToProject(3, 1, 2, "MEMBER"); -- Assign Bob to Database Migration
+CALL AssignUserToProject(3, 1, 4, "MEMBER"); -- Assign David to Database Migration
 
 -- Verify projects and assignments
 SELECT 'Projects and assignments:' AS info;
@@ -100,12 +100,12 @@ CALL UpdateTaskStatus(@task_schema, 'COMPLETED'); -- Schema Analysis completed
 -- Test AssignUserToTask procedure using captured task IDs
 SELECT 'Testing AssignUserToTask procedure:' AS info;
 
-CALL AssignUserToTask(@task_testing, 1, 'MEMBER');
-CALL AssignUserToTask(@task_android, 1, 'MEMBER');
-CALL AssignUserToTask(@task_validation, 4, 'MEMBER');
-CALL AssignUserToTask(@task_ui_ux, 2, 'MEMBER');
-CALL AssignUserToTask(@task_ios, 3, NULL);
-CALL AssignUserToTask(@task_android, 5, 'MEMBER');
+CALL AssignUserToTask(@task_testing, 1, 1, 'MEMBER');
+CALL AssignUserToTask(@task_android, 2, 1, 'MEMBER');
+CALL AssignUserToTask(@task_validation, 3, 4, 'MEMBER');
+CALL AssignUserToTask(@task_ui_ux, 1, 2, 'MEMBER');
+-- CALL AssignUserToTask(@task_ios, 2, 3, NULL); -- no update cause no `role` provided
+CALL AssignUserToTask(@task_android, 2, 5, 'MEMBER');
 
 -- Display captured task IDs for verification
 SELECT 'Captured Task IDs:' AS info;
@@ -124,7 +124,7 @@ SELECT
 
 -- Verify tasks
 SELECT 'Tasks created:' AS info;
-SELECT t.id_task, t.title, t.status, p.title AS project_title
+SELECT t.id_task, t.title, t.progress_status, p.title AS project_title
 FROM Task t
 JOIN Project p ON t.id_project = p.id_project
 ORDER BY p.id_project, t.id_task;
@@ -205,7 +205,7 @@ SELECT '================================================' AS info;
 -- Test 1: Try to assign disabled user to project (should fail with error)
 SELECT '1. Testing assignment of disabled user (Frank Wilson - user_id=6):' AS test_info;
 -- This should produce: ERROR 1644 (45000): User does not exist or is disabled
--- CALL AssignUserToProject(1, 6);
+-- CALL AssignUserToProject(1, 1, 6);
 
 -- Test 2: Try to create task with user not assigned to project (should fail)
 SELECT '2. Testing task creation with unassigned user (Eve not in project 1):' AS test_info;
@@ -220,7 +220,7 @@ SELECT '3. Testing invalid task status update:' AS test_info;
 -- Test 4: Try to assign user already assigned to project (should fail)
 SELECT '4. Testing duplicate project assignment (Bob already in project 1):' AS test_info;
 -- This should produce: ERROR 1644 (45000): User is already assigned to this project
--- CALL AssignUserToProject(1, 2);
+-- CALL AssignUserToProject(1, 1, 2);
 
 SELECT 'NOTE: Error test calls are commented out to allow script completion.' AS info;
 SELECT 'Uncomment individual lines above to test specific error scenarios.' AS info;
@@ -234,7 +234,7 @@ SELECT '==================' AS info;
 
 SELECT 'Total Users:' AS metric, COUNT(*) AS count FROM User
 UNION ALL
-SELECT 'Enabled Users:', COUNT(*) FROM User WHERE status = 'ENABLED'
+SELECT 'Enabled Users:', COUNT(*) FROM User WHERE account_status = 'ENABLED'
 UNION ALL
 SELECT 'Admin Users:', COUNT(*) FROM User WHERE is_admin = TRUE
 UNION ALL
@@ -242,9 +242,9 @@ SELECT 'Total Projects:', COUNT(*) FROM Project
 UNION ALL
 SELECT 'Total Tasks:', COUNT(*) FROM Task
 UNION ALL
-SELECT 'Completed Tasks:', COUNT(*) FROM Task WHERE status = 'COMPLETED'
+SELECT 'Completed Tasks:', COUNT(*) FROM Task WHERE progress_status = 'COMPLETED'
 UNION ALL
-SELECT 'In Progress Tasks:', COUNT(*) FROM Task WHERE status = 'IN_PROGRESS'
+SELECT 'In Progress Tasks:', COUNT(*) FROM Task WHERE progress_status = 'IN_PROGRESS'
 UNION ALL
 SELECT 'Total Files:', COUNT(*) FROM File
 UNION ALL
@@ -252,9 +252,82 @@ SELECT 'Project Assignments:', COUNT(*) FROM ProjectAssignment
 UNION ALL
 SELECT 'Task Assignments:', COUNT(*) FROM TaskAssignment;
 
-SELECT '--- Test Data Script Completed Successfully ---' AS info;
+--------------------------------------------------------------------------------
+-- TEST NEW PROCEDURES
+--------------------------------------------------------------------------------
+
+-- Test GetAllProjects procedure
+SELECT 'Testing GetAllProjects procedure:' AS info;
+
+SELECT 'All projects visible to Alice (user_id=1):' AS info;
+CALL GetAllProjects(1);
+
+SELECT 'All projects visible to Carol (user_id=3):' AS info;
+CALL GetAllProjects(3);
+
+SELECT 'All public projects (anonymous access):' AS info;
+CALL GetAllProjects(NULL);
+
+-- Test GetProjectDetails procedure
+SELECT 'Testing GetProjectDetails procedure:' AS info;
+
+SELECT 'Details for Website Redesign project (project_id=1):' AS info;
+CALL GetProjectDetails(1);
+
+SELECT 'Details for Mobile App Development project (project_id=2):' AS info;
+CALL GetProjectDetails(2);
+
+SELECT 'Details for Database Migration project (project_id=3):' AS info;
+CALL GetProjectDetails(3);
+
+-- Test GetProjectFilenames procedure
+SELECT 'Testing GetProjectFilenames procedure:' AS info;
+
+SELECT 'Files in Website Redesign project (project_id=1):' AS info;
+CALL GetProjectFilenames(1);
+
+SELECT 'Files in Mobile App Development project (project_id=2):' AS info;
+CALL GetProjectFilenames(2);
+
+SELECT 'Files in Database Migration project (project_id=3):' AS info;
+CALL GetProjectFilenames(3);
+
+SELECT 'All project files:' AS info;
+CALL GetProjectFilenames(NULL);
+
+--------------------------------------------------------------------------------
+-- ADDITIONAL TEST DATA FOR NEW PROCEDURES
+--------------------------------------------------------------------------------
+
+-- Add some projects with different visibility settings to test GetAllProjects
+CALL CreateProject(1, 'Internal Security Audit', '2024-05-01 09:00:00', '2024-07-31 17:00:00');
+SET @private_project = LAST_INSERT_ID();
+
+-- Update project visibility (you'll need an UpdateProjectVisibility procedure or manual UPDATE)
+-- For now, we'll assume projects are PUBLIC by default as per your schema
+
+-- Create additional project assignments to test role-based access
+CALL AssignUserToProject(@private_project, 1, 2, "OWNER");
+CALL AssignUserToProject(@private_project, 1, 5, "REVIEWER");
+
+-- Add more files to test GetProjectFilenames with different projects
+CALL UploadFile('security_checklist', 'xlsx', 0x504B0304, 65536);
+SET @security_file = LAST_INSERT_ID();
+
+CALL AttachFileToProject(@private_project, @security_file);
+
+-- Verify the new test data
+SELECT 'New test data created:' AS info;
+SELECT p.id_project, p.title, COUNT(pa.id_user) as member_count
+FROM Project p
+LEFT JOIN ProjectAssignment pa ON p.id_project = pa.id_project
+GROUP BY p.id_project, p.title
+ORDER BY p.id_project;
 
 --------------------------------------------------------------------------------
 -- At the end of script
 --------------------------------------------------------------------------------
+SELECT '--- Test Data Script Completed Successfully ---' AS info;
+
 SET sql_mode = DEFAULT;
+

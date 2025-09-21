@@ -21,9 +21,7 @@ BEGIN
   INSERT INTO `User` (name, email, password, phone_number, is_admin)
     VALUES (p_name, p_email, p_password, p_phone_number, p_is_admin);
 
-  SELECT
-    LAST_INSERT_ID() as user_id,
-    'User created successfully' as message;
+  SELECT LAST_INSERT_ID() as user_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -42,19 +40,18 @@ BEGIN
   SELECT
     id_user as user_id,
     is_admin,
-    status = 'ENABLED' AS is_enabled,
-    'Login successful' as message
+    account_status = 'ENABLED' AS is_enabled
   FROM `User`
   WHERE email = p_email
     AND password = p_password
-    AND status = 'ENABLED';
+    AND account_status = 'ENABLED';
 END; //
 
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE UpdateUserStatus(
   in p_user_id int,
-  in p_status varchar(16)
+  in p_account_status varchar(16)
 )
 BEGIN
   -- Intercept invalid ENUM value
@@ -66,18 +63,13 @@ BEGIN
 
   -- Update user status
   UPDATE `User`
-    SET status = p_status
+    SET account_status = p_account_status
     WHERE id_user = p_user_id;
 
   -- Return
   IF ROW_COUNT() = 0 THEN
-    SELECT
-      0 AS success,
-      CONCAT('No user updated with id ', p_user_id) AS message;
-  ELSE
-    SELECT
-      1 AS success,
-      CONCAT('User status updated to ', p_status) AS message;
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Invalid user_id';
   END IF;
 END; //
 
@@ -86,10 +78,10 @@ END; //
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE CreateProject(
+  in p_user_id int,
   in p_title varchar(256),
   in p_start_date datetime,
-  in p_end_date datetime,
-  in p_creator_user_id int
+  in p_end_date datetime
 )
 BEGIN
   DECLARE v_project_id int;
@@ -101,42 +93,68 @@ BEGIN
   SET v_project_id = LAST_INSERT_ID();
 
   -- Assign creator to project
-  INSERT INTO ProjectAssignment (id_project, id_user)
-    VALUES (v_project_id, p_creator_user_id);
+  INSERT INTO ProjectAssignment (id_project, id_user, role)
+    VALUES (v_project_id, p_user_id, "OWNER");
 
-  SELECT v_project_id as project_id, 'Project created successfully' as message;
+  SELECT v_project_id as project_id;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE UpdateProject(
+    IN p_project_id INT,
+    IN p_user_id INT,
+    IN p_title VARCHAR(256),
+    IN p_visibility VARCHAR(16),
+    IN p_start_date DATETIME,
+    IN p_end_date DATETIME
+)
+BEGIN
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR v_role <> 'OWNER' THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners can update project details';
+  END IF;
+
+  -- Update the project
+  UPDATE Project SET
+    title      = COALESCE(p_title, title),
+    visibility = COALESCE(p_visibility, visibility),
+    start_date = COALESCE(p_start_date, start_date),
+    end_date   = COALESCE(p_end_date, end_date)
+  WHERE id_project = p_project_id;
+
+  IF ROW_COUNT() = 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Project not found';
+  END IF;
 END; //
 
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE AssignUserToProject(
-  IN p_project_id int,
-  IN p_user_id int,
-  IN p_status varchar(16)
+  in p_project_id int,
+  in p_user_id int,
+  in p_assigned_user_id int,
+  in p_role varchar(16)
 )
 BEGIN
-  -- TODO: enforce `status` enum hierarchy
-  -- TODO: have rule so only 'OWNER' can change `status`?
-
-  -- Handler for repeated entry in ProjectAssignment
-  DECLARE EXIT HANDLER FOR 1062
-  BEGIN
-    IF p_status IS NOT NULL THEN
-      UPDATE ProjectAssignment
-        SET status = p_status
-        WHERE id_project = p_project_id
-        AND id_user = p_user_id;
-      SELECT 'User assignment updated' AS message;
-    ELSE
-      SELECT 'No update performed: status not provided' AS message;
-    END IF;
-  END;
+  DECLARE v_role VARCHAR(16);
 
   -- Intercept invalid ENUM value
   DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   BEGIN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Invalid status: must be one of the ENUM values defined in ProjectAssignment.status';
+      SET MESSAGE_TEXT = 'Invalid role: must be one of the ENUM values defined in ProjectAssignment.role';
   END;
 
   -- Handle foreign key violation
@@ -146,15 +164,79 @@ BEGIN
       SET MESSAGE_TEXT = 'Invalid project or user';
   END;
 
-  IF p_status IS NOT NULL THEN
-    INSERT INTO ProjectAssignment (id_project, id_user, status)
-      VALUES (p_project_id, p_user_id, p_status);
-  ELSE
-    INSERT INTO ProjectAssignment (id_project, id_user)
-      VALUES (p_project_id, p_user_id);
+  -- Check if the user is the project owner
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR v_role <> 'OWNER' THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Only project owners can update project details';
   END IF;
 
-  SELECT 'User assigned to project' as message;
+  IF p_role IS NOT NULL THEN
+    INSERT INTO ProjectAssignment (id_project, id_user, role)
+      VALUES (p_project_id, p_assigned_user_id, p_role);
+  ELSE
+    INSERT INTO ProjectAssignment (id_project, id_user)
+      VALUES (p_project_id, p_assigned_user_id);
+  END IF;
+END; //
+
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE GetAllProjects(
+  in p_user_id int
+)
+BEGIN
+  SELECT
+    p.*,
+    pa.role,
+    COUNT(DISTINCT t.id_task) AS task_count,
+    COUNT(DISTINCT pf.id_file) AS file_count
+  FROM Project p
+  LEFT JOIN ProjectAssignment pa ON p.id_project = pa.id_project
+    AND pa.id_user = p_user_id
+  LEFT JOIN Task t ON p.id_project = t.id_project
+  LEFT JOIN ProjectFile pf ON p.id_project = pf.id_project
+  WHERE
+    CASE
+      WHEN p_user_id IS NULL THEN p.visibility = 'PUBLIC'
+      ELSE pa.id_user = p_user_id
+    END
+  GROUP BY p.id_project, pa.role
+  ORDER BY p.start_date DESC;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE GetProjectDetails(
+  in p_project_id int
+)
+BEGIN
+  SELECT
+    p.id_project,
+    p.title,
+    p.visibility,
+    p.start_date,
+    p.end_date,
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'id_user', u.id_user,
+        'name', u.name,
+        'email', u.email,
+        'role', pa.role
+      )
+    ) AS members
+    FROM Project p
+    JOIN ProjectAssignment pa ON p.id_project = pa.id_project
+    JOIN `User` u ON pa.id_user = u.id_user
+    WHERE p.id_project = p_project_id
+    GROUP BY p.id_project;
 END; //
 
 --------------------------------------------------------------------------------
@@ -168,7 +250,7 @@ CREATE PROCEDURE CreateTask(
   in p_start_date datetime,
   in p_end_date datetime,
   in p_assigned_user_id int,
-  in p_assigned_status varchar(16)
+  in p_assigned_role varchar(16)
 )
 BEGIN
   DECLARE v_task_id int;
@@ -186,16 +268,16 @@ BEGIN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User must be assigned to project first';
     END IF;
 
-    IF p_assigned_status IS NOT NULL THEN
-      INSERT INTO TaskAssignment (id_task, id_user, status)
-        VALUES (v_task_id, p_assigned_user_id, p_assigned_status);
+    IF p_assigned_role IS NOT NULL THEN
+      INSERT INTO TaskAssignment (id_task, id_user, role)
+        VALUES (v_task_id, p_assigned_user_id, p_assigned_role);
     ELSE
       INSERT INTO TaskAssignment (id_task, id_user)
         VALUES (v_task_id, p_assigned_user_id);
     END IF;
   END IF;
 
-  SELECT v_task_id as task_id, 'Task created successfully' as message;
+  SELECT v_task_id as task_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -203,21 +285,21 @@ END; //
 CREATE PROCEDURE AssignUserToTask(
   in p_task_id int,
   in p_user_id int,
-  in p_status varchar(16)
+  in p_assigned_user_id int,
+  in p_role varchar(16)
 )
 BEGIN
-  -- TODO: enforce `status` enum hierarchy
-  -- TODO: have rule so only 'OWNER' can change `status`?
+  DECLARE v_role VARCHAR(16);
 
   -- Handler for repeated entry in TaskAssignment
   DECLARE EXIT HANDLER FOR 1062
   BEGIN
-    IF p_status IS NOT NULL THEN
-      UPDATE TaskAssignment SET status = p_status
-        WHERE id_task = p_task_id AND id_user = p_user_id;
-      SELECT 'User task assignment updated' AS message;
+    IF p_role IS NOT NULL THEN
+      UPDATE TaskAssignment SET role = p_role
+        WHERE id_task = p_task_id AND id_user = p_assigned_user_id;
     ELSE
-      SELECT 'No update performed: status not provided' AS message;
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No update performed: role not provided';
     END IF;
   END;
 
@@ -225,7 +307,7 @@ BEGIN
   DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   BEGIN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Invalid status: must be one of the ENUM values defined in TaskAssignment.status';
+      SET MESSAGE_TEXT = 'Invalid role: must be one of the ENUM values defined in TaskAssignment.role';
   END;
 
   -- Handle foreign key violation
@@ -235,39 +317,49 @@ BEGIN
       SET MESSAGE_TEXT = 'Invalid task or user';
   END;
 
+
+  -- Check if the user is the project owner
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_user_id
+    LIMIT 1;
+
+  -- IF v_role IS NULL OR v_role <> 'OWNER' THEN
+  --   SIGNAL SQLSTATE '45000'
+  --   SET MESSAGE_TEXT = 'Only project owners can update project details';
+  -- END IF;
+
   -- Attempt to insert new assignment
-  IF p_status IS NOT NULL THEN
-    INSERT INTO TaskAssignment (id_task, id_user, status)
-      VALUES (p_task_id, p_user_id, p_status);
+  IF p_role IS NOT NULL THEN
+    INSERT INTO TaskAssignment (id_task, id_user, role)
+      VALUES (p_task_id, p_assigned_user_id, p_role);
   ELSE
     INSERT INTO TaskAssignment (id_task, id_user)
-      VALUES (p_task_id, p_user_id);
+      VALUES (p_task_id, p_assigned_user_id);
   END IF;
-
-  SELECT 'User assigned to task' AS message;
 END; //
 
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE UpdateTaskStatus(
   in p_task_id int,
-  in p_status varchar(16)
+  in p_progress_status varchar(16)
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER' can change `status`?
+  -- TODO: have rule so only 'OWNER' can change `progress_status`?
 
   -- Intercept invalid ENUM value
   DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   BEGIN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Invalid status: must be one of the ENUM values defined in Task.status';
+      SET MESSAGE_TEXT = 'Invalid progress_status: must be one of the ENUM values defined in Task.progress_status';
   END;
 
   UPDATE Task
-    SET status = p_status
+    SET progress_status = p_progress_status
     WHERE id_task = p_task_id;
-
-  SELECT CONCAT('Task status updated to ', p_status) as message;
 END; //
 
 --------------------------------------------------------------------------------
@@ -285,7 +377,7 @@ BEGIN
   INSERT INTO `File` (name, extension, data, size)
   VALUES (p_name, p_extension, p_data, p_size);
 
-  SELECT LAST_INSERT_ID() AS id_file, 'File uploaded successfully' AS message;
+  SELECT LAST_INSERT_ID() AS id_file;
 END; //
 
 --------------------------------------------------------------------------------
@@ -313,8 +405,6 @@ BEGIN
 
   INSERT INTO ProjectFile (id_project, id_file)
     VALUES (p_project_id, p_file_id);
-
-  SELECT 'File attached to project' as message;
 END; //
 
 --------------------------------------------------------------------------------
@@ -328,8 +418,6 @@ BEGIN
 
   INSERT INTO TaskFile (id_task, id_file)
     VALUES (p_task_id, p_file_id);
-
-  SELECT 'File attached to task' as message;
 END; //
 
 --------------------------------------------------------------------------------
@@ -345,8 +433,8 @@ BEGIN
   SELECT
     t.*,
     JSON_ARRAYAGG(
-      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'is_enabled', u.status = 'ENABLED')
-    ) AS assigned_users,
+      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'is_enabled', u.account_status = 'ENABLED')
+    ) AS members,
     COUNT(DISTINCT tf.id_file) AS file_count,
     p.title AS project_title
     FROM Task t
@@ -359,7 +447,7 @@ BEGIN
     INNER JOIN Project p ON t.id_project = p.id_project
     WHERE p_filter_project_id IS NULL OR t.id_project = p_filter_project_id
     GROUP BY t.id_task
-    ORDER BY t.status, t.start_date, t.title;
+    ORDER BY t.progress_status, t.start_date, t.title;
 END; //
 
 --------------------------------------------------------------------------------
@@ -373,8 +461,8 @@ BEGIN
   SELECT
     t.*,
     JSON_ARRAYAGG(
-      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'status', u.status)
-    ) AS assigned_users,
+      JSON_OBJECT('user_id', u.id_user, 'name', u.name, 'is_enabled', u.account_status = 'ENABLED')
+    ) AS members,
     COUNT(DISTINCT tf.id_file) AS file_count
     FROM Task t
     LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
@@ -389,7 +477,7 @@ BEGIN
         AND ta_exists.id_user = p_filter_user_id
     ))
     GROUP BY t.id_task
-    ORDER BY t.status, t.start_date, t.title;
+    ORDER BY t.progress_status, t.start_date, t.title;
 END; //
 
 --------------------------------------------------------------------------------
@@ -408,6 +496,24 @@ BEGIN
     FROM TaskFile tf
     JOIN `File` f ON tf.id_file = f.id_file
     WHERE p_id_task IS NULL OR tf.id_task = p_id_task;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE GetProjectFilenames (
+    IN p_id_project INT
+)
+BEGIN
+    SELECT
+        f.id_file,
+        CONCAT(f.name, '.', f.extension) AS filename,
+        f.name,
+        f.extension,
+        f.size,
+        f.uploaded_at
+    FROM ProjectFile pf
+    JOIN `File` f ON pf.id_file = f.id_file
+    WHERE p_id_project IS NULL OR pf.id_project = p_id_project;
 END; //
 
 --------------------------------------------------------------------------------

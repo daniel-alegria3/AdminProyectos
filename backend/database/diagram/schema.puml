@@ -15,7 +15,7 @@ package "AdminProyectos_BD" {
     email : String
     password : String
     phone_number : String
-    status : { ENABLED, DISABLED }
+    account_status : { ENABLED, DISABLED }
     is_admin : boolean
   }
 
@@ -24,6 +24,7 @@ package "AdminProyectos_BD" {
     * id_project : int <<PK>>
     --
     title : String
+    visibility : { PUBLIC, PRIVATE }
     start_date : DateTime
     end_date : DateTime
   }
@@ -32,7 +33,7 @@ package "AdminProyectos_BD" {
     --
     + id_project : int <<PK, FK>>
     + id_user : int <<PK, FK>>
-    + role : { OWNER, MEMBER, REVIEWER }
+    role : { OWNER, MEMBER, REVIEWER }
   }
 
 
@@ -44,14 +45,14 @@ package "AdminProyectos_BD" {
     description: String
     start_date : DateTime
     end_date : DateTime
-    status : { \n\tPENDING,\n\tIN_PROGRESS,\n\tCOMPLETED,\n\tCANCELLED,\n }
+    progress_status : { \n\tPENDING,\n\tIN_PROGRESS,\n\tCOMPLETED,\n\tCANCELLED,\n }
   }
 
   class TaskAssignment ASSIGNMENT_COLOR {
     --
     + id_task : int <<PK, FK>>
     + id_user : int <<PK, FK>>
-    + role : { OWNER, MEMBER }
+    role : { OWNER, MEMBER }
   }
 
 
