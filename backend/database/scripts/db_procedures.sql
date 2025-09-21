@@ -28,7 +28,7 @@ BEGIN
   VALUES (p_name, p_email, p_password, p_phone_number, p_is_admin);
 
   -- Return the created user ID
-  SELECT LAST_INSERT_ID() as id_user;
+  SELECT LAST_INSERT_ID() as user_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -667,7 +667,7 @@ BEGIN
   INSERT INTO `File` (name, extension, data, size)
   VALUES (p_name, p_extension, p_data, p_size);
 
-  SELECT LAST_INSERT_ID() AS id_file;
+  SELECT LAST_INSERT_ID() AS file_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -676,10 +676,12 @@ CREATE PROCEDURE DownloadFile (
     IN p_id_file INT
 )
 BEGIN
-    SELECT
-        f.id_file,
-        CONCAT(f.name, '.', f.extension) AS filename,
-        f.data
+  SELECT
+    f.id_file,
+    CONCAT(f.name, '.', f.extension) AS filename,
+    f.extension,
+    f.data,
+    f.size
     FROM `File` f
     WHERE f.id_file = p_id_file;
 END; //

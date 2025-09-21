@@ -1,5 +1,99 @@
 const db = require('../database/db');
 
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, and JPG files are allowed.'), false);
+    }
+  },
+});
+
+const createUploadHandler = (attachFunction, entityIdField, entityName) => {
+  return [
+    upload.array('files'),
+    async (req, res) => {
+      try {
+        // Check if any files were uploaded
+        if (!req.files || req.files.length === 0) {
+          return res.status(400).json({ error: 'No se pasaron archivos' });
+        }
+
+        const entityId = req.body[entityIdField];
+        if (!entityId) {
+          return res.status(400).json({ error: `${entityName} ID is required` });
+        }
+
+        const uploadedFiles = [];
+        const errors = [];
+
+        // Process each file
+        for (const file of req.files) {
+          try {
+            const { originalname, buffer } = file;
+            const size = Buffer.byteLength(buffer);
+
+            // Extract name + extension
+            const parts = originalname.split('.');
+            const extension = parts.length > 1 ? parts.pop() : '';
+            const name = parts.join('.') || originalname;
+
+            // Upload file to database
+            let rows;
+            [rows] = await db.query('CALL UploadFile(?, ?, ?, ?)', [name, extension, buffer, size]);
+            const file_id = rows[0][0].file_id;
+
+            // Attach file using the provided attach function
+            [rows] = await attachFunction(entityId, file_id);
+
+            uploadedFiles.push({
+              file_id,
+              filename: originalname,
+              size,
+            });
+          } catch (fileError) {
+            errors.push({
+              filename: file.originalname,
+              error: fileError.message,
+            });
+          }
+        }
+
+        // Prepare response
+        const response = {
+          success: uploadedFiles.length > 0,
+          message: `${uploadedFiles.length} archivo(s) subido(s) exitosamente al ${entityName.toLowerCase()}`,
+          uploadedFiles,
+          totalUploaded: uploadedFiles.length,
+          totalFiles: req.files.length,
+        };
+
+        // Include errors if any occurred
+        if (errors.length > 0) {
+          response.errors = errors;
+          response.message += `, ${errors.length} archivo(s) fallaron`;
+        }
+
+        return res.json(response);
+      } catch (error) {
+        return handleError(res, error);
+      }
+    },
+  ];
+};
+
 const handleError = (res, error) => {
   console.error('Backend error:', error);
 
@@ -114,7 +208,7 @@ const userController = {
     try {
       const { user_id, account_status } = req.body;
 
-      if ((!user_id || !account_status)) {
+      if (!user_id || !account_status) {
         return res.status(400).json({ success: false, error: 'missing paramemeters' });
       }
 
@@ -298,6 +392,8 @@ const userController = {
 
   getProjectDetails: async (req, res) => {
     try {
+      // Returns members, files
+
       const { project_id } = req.params;
 
       const [rows] = await db.execute(`CALL GetProjectDetails(?)`, [project_id]);
@@ -405,6 +501,7 @@ const userController = {
 
   getTaskDetails: async (req, res) => {
     try {
+      // Returns members, files
       const { task_id } = req.params;
 
       const [rows] = await db.execute(`CALL GetTaskDetails(?)`, [task_id]);
@@ -463,6 +560,114 @@ const userController = {
       handleError(res, error);
     }
   },
+
+  downloadFile: async (req, res) => {
+    try {
+      const { file_id } = req.params;
+
+      const [rows] = await db.execute('CALL DownloadFile(?)', [id]);
+      const result = rows[0][0];
+
+      if (!result) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const mimeType = mime.lookup(result.extension) || 'application/octet-stream';
+
+      // Set headers
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', Buffer.byteLength(result.data));
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+
+      // Send raw binary data
+      res.send(result.data);
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  uploadFile: [
+    upload.array('files'),
+    async (req, res) => {
+      try {
+        // Check if any files were uploaded
+        if (!req.files || req.files.length === 0) {
+          return res.status(400).json({ error: 'No se pasaron archivos' });
+        }
+
+        const { project_id } = req.body;
+        if (!project_id) {
+          return res.status(400).json({ error: 'Project ID is required' });
+        }
+
+        const uploadedFiles = [];
+        const errors = [];
+
+        // Process each file
+        for (const file of req.files) {
+          try {
+            const { originalname, buffer } = file;
+            const size = Buffer.byteLength(buffer);
+
+            // Extract name + extension
+            const parts = originalname.split('.');
+            const extension = parts.length > 1 ? parts.pop() : '';
+            const name = parts.join('.') || originalname;
+
+            // Upload file to database
+            let rows;
+            [rows] = await db.query('CALL UploadFile(?, ?, ?, ?)', [name, extension, buffer, size]);
+            const file_id = rows[0][0].file_id;
+
+            // Attach file to project
+            [rows] = await db.execute('CALL AttachFileToProject(?, ?)', [project_id, file_id]);
+
+            uploadedFiles.push({
+              file_id,
+              filename: originalname,
+              size,
+            });
+          } catch (fileError) {
+            errors.push({
+              filename: file.originalname,
+              error: fileError.message,
+            });
+          }
+        }
+
+        // Prepare response
+        const response = {
+          success: uploadedFiles.length > 0,
+          message: `${uploadedFiles.length} archivo(s) subido(s) exitosamente`,
+          uploadedFiles,
+          totalUploaded: uploadedFiles.length,
+          totalFiles: req.files.length,
+        };
+
+        // Include errors if any occurred
+        if (errors.length > 0) {
+          response.errors = errors;
+          response.message += `, ${errors.length} archivo(s) fallaron`;
+        }
+
+        res.json(response);
+      } catch (error) {
+        handleError(res, error);
+      }
+    },
+  ],
+
+  uploadProjectFile: createUploadHandler(
+    (projectId, fileId) => db.execute('CALL AttachFileToProject(?, ?)', [projectId, fileId]),
+    'project_id',
+    'Project',
+  ),
+
+  uploadTaskFile: createUploadHandler(
+    (taskId, fileId) => db.execute('CALL AttachFileToTask(?, ?)', [taskId, fileId]),
+    'task_id',
+    'Task',
+  ),
 };
 
 module.exports = userController;
