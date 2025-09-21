@@ -554,7 +554,7 @@ BEGIN
   END;
 
 
-  -- Check if the user is the project owner
+  -- Check if the user is the task owner
   SELECT role
     INTO v_role
     FROM TaskAssignment

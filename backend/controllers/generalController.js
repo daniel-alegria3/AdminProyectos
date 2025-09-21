@@ -114,7 +114,7 @@ const userController = {
     try {
       const { user_id, account_status } = req.body;
 
-      if ((!user_id, !account_status)) {
+      if ((!user_id || !account_status)) {
         return res.status(400).json({ success: false, error: 'missing paramemeters' });
       }
 
@@ -223,11 +223,10 @@ const userController = {
 
   updateProject: async (req, res) => {
     try {
-      const { project_id } = req.params;
-      const { title, visibility, start_date, end_date } = req.body;
+      const { project_id, title, visibility, start_date, end_date } = req.body;
       const creator_user_id = req.user.id_user;
 
-      const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?)', [
         project_id,
         creator_user_id,
         title || null,
@@ -255,7 +254,7 @@ const userController = {
         return res.status(400).json({ success: false, error: 'missing parameters' });
       }
 
-      const [rows] = await db.execute('CALL AssignUserToProject(?, ?, ?)', [
+      const [rows] = await db.execute('CALL AssignUserToProject(?, ?, ?, ?)', [
         project_id,
         creator_user_id,
         assigned_user_id,
@@ -442,17 +441,18 @@ const userController = {
 
   assignUserToTask: async (req, res) => {
     try {
-      const { task_id, user_id, status } = req.body;
+      const { task_id, assigned_user_id, role } = req.body;
 
       if (!user_id) {
         return res.status(400).json({ error: 'User ID is required' });
       }
-      const creator_user_id = req.session.user_id;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL AssignUserToTask(?, ?, ?)', [
+      const [rows] = await db.execute('CALL AssignUserToTask(?, ?, ?, ?)', [
         task_id,
-        user_id,
-        status || 'MEMBER',
+        requesting_user_id,
+        assigned_user_id,
+        role || 'MEMBER',
       ]);
 
       res.json({
