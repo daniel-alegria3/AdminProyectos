@@ -1,0 +1,15 @@
+<!-- Gestión de Tareas - AdminProyectos -->
+<div class="container">
+  <div class="task-header">
+    <h1>Gestión de Tareas</h1>
+    <button class="create-task-btn" (click)="abrirFormulario()">
+      Crear Nueva Tarea
+    </button>
+  </div>
+
+  <!-- Lista de tareas -->
+  <task-list (abrirFormulario)="abrirFormulario()"></task-list>
+
+  <!-- Formulario modal -->
+  <task-form *ngIf="mostrarFormulario" (cerrarFormulario)="cerrarFormulario()" (tareaCreada)="onTareaCreada()"></task-form>
+</div>

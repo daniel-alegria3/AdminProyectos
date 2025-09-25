@@ -52,45 +52,45 @@ export class BackendService {
     return this.http.get(`${this.baseUrl}/project`, { withCredentials: true });
   }
 
-  getProjectFiles(): Observable<any> {
-  }
+  // getProjectFiles(): Observable<any> {
+  // }
 
   createProject(data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/project`, data, { withCredentials: true });
   }
 
-  assignUserToProject(): Observable<any> {
-  }
+  // assignUserToProject(): Observable<any> {
+  // }
 
-  updateProjectAssignRole(): Observable<any> {
-  }
+  // updateProjectAssignRole(): Observable<any> {
+  // }
 
   // --- TASK ---
   createTask(data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/task`, data, { withCredentials: true });
   }
 
-  assignUserToTask(): Observable<any> {
-  }
+  // assignUserToTask(): Observable<any> {
+  // }
 
-  updateTaskAssignRole(): Observable<any> {
-  }
+  // updateTaskAssignRole(): Observable<any> {
+  // }
 
-  updateTaskProgressStatus(): Observable<any> {
-  }
+  // updateTaskProgressStatus(): Observable<any> {
+  // }
 
   getTaskFiles(taskId: number): Observable<any> {
     return this.http.get(`${this.baseUrl}/task/${taskId}`, { withCredentials: true });
   }
 
-  getMyTasks (): Observable<any> {
-  }
+  // getMyTasks (): Observable<any> {
+  // }
 
-  getTasksByProject(): Observable<any> {
-  }
+  // getTasksByProject(): Observable<any> {
+  // }
 
-  getTasksByAssignedUser(): Observable<any> {
-  }
+  // getTasksByAssignedUser(): Observable<any> {
+  // }
 
   // --- FILE ---
   uploadFileToProject(projectId: number, files: File[]): Observable<any> {

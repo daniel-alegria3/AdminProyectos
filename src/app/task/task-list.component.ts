@@ -18,27 +18,27 @@ import { TaskService } from './task.service';
         <div class="filter-section">
           <label>Usuario:</label>
           <div class="filter-buttons">
-            <button 
-              class="filter-btn" 
+            <button
+              class="filter-btn"
               [class.active]="filtroUsuario === ''"
               (click)="filtroUsuario = ''">
               Todos
             </button>
-            <button 
-              class="filter-btn" 
+            <button
+              class="filter-btn"
               [class.active]="filtroUsuario === usuario"
-              *ngFor="let usuario of usuariosUnicos" 
+              *ngFor="let usuario of usuariosUnicos"
               (click)="filtroUsuario = usuario">
               👤 {{ usuario }}
             </button>
           </div>
         </div>
       </div>
-      
+
       <div *ngIf="tareasFiltradas.length === 0" class="no-tasks">
         No hay tareas que mostrar. ¡Crea tu primera tarea!
       </div>
-      
+
       <div *ngFor="let tarea of tareasFiltradas" class="task-item">
         <div class="task-content">
           <div class="task-title">{{ tarea.titulo }}</div>
@@ -65,7 +65,7 @@ import { TaskService } from './task.service';
         </div>
       </div>
     </div>
-    
+
     <!-- Modal de confirmación para eliminar -->
     <div class="confirmation-modal-overlay" *ngIf="mostrarConfirmacion" (click)="cancelarEliminacion()">
       <div class="confirmation-modal-content" (click)="$event.stopPropagation()">
@@ -89,9 +89,10 @@ import { TaskService } from './task.service';
     </div>
   `
 })
+
 export class TaskListComponent implements OnInit {
   @Output() abrirFormulario = new EventEmitter<void>();
-  
+
   tareas: Tarea[] = [];
   filtroUsuario = '';
   mostrarConfirmacion = false;

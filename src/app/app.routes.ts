@@ -1,10 +1,12 @@
 import { Routes } from '@angular/router';
 import { Home } from '@/home/home';
+import { Task } from '@/task/task';
 
 import { BackendTest } from './backend-test/backend-test';
 
 export const routes: Routes = [
   { path: 'home', component: Home },
+  { path: 'task', component: Task },
   { path: 'backend-test', component: BackendTest },
 
   { path: '', redirectTo: 'home', pathMatch: 'full' },

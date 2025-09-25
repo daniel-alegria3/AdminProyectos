@@ -15,7 +15,7 @@ import { TaskService } from './task.service';
             <h2>Crear Tarea</h2>
             <button type="button" class="btn-cerrar" (click)="cerrar()">✕</button>
           </div>
-          
+
           <form (ngSubmit)="crearTarea()" #form="ngForm">
         <div class="form-group">
           <label>Título:</label>
@@ -41,8 +41,8 @@ import { TaskService } from './task.service';
               👤 {{ usuarioActual || 'Seleccionar' }}
             </button>
             <div class="user-dropdown" *ngIf="mostrarSelectorUsuario">
-              <div class="user-option" 
-                   *ngFor="let usuario of usuariosDisponibles" 
+              <div class="user-option"
+                   *ngFor="let usuario of usuariosDisponibles"
                    (click)="seleccionarUsuario(usuario)">
                 👤 {{ usuario }}
               </div>
@@ -61,10 +61,11 @@ import { TaskService } from './task.service';
     </div>
   `
 })
+
 export class TaskFormComponent {
   @Output() cerrarFormulario = new EventEmitter<void>();
   @Output() tareaCreada = new EventEmitter<void>();
-  
+
   tarea: Tarea = {
     titulo: '',
     descripcion: '',
@@ -131,10 +132,10 @@ export class TaskFormComponent {
     this.taskService.createTask(this.tarea).subscribe({
       next: (response) => {
         console.log('Respuesta del backend:', response);
-        
+
         if (response?.success) {
           this.mensaje = 'Tarea creada en el backend correctamente';
-          
+
           // Si hay archivos y tenemos un task_id, subirlos
           if (this.selectedFiles && this.selectedFiles.length > 0 && response.data?.task_id) {
             this.taskService.uploadTaskFiles(response.data.task_id, this.selectedFiles).subscribe({
