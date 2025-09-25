@@ -1,0 +1,17 @@
+<div class="p-4 space-y-3">
+  <h2 class="text-xl font-bold">Backend Test Page</h2>
+
+  <div class="space-x-2">
+    <button (click)="testRegister()">Register</button><br>
+    <button (click)="testLogin()">Login</button><br>
+    <button (click)="testLogout()">Logout</button><br>
+    <button (click)="testGetUsers()">Get Users</button><br>
+    <button (click)="testCreateProject()">Create Project</button><br>
+    <button (click)="testGetProjects()">Get Projects</button><br>
+    <button (click)="testCreateTask()">Create Task</button><br>
+  </div>
+
+  <h3 class="font-semibold">Response:</h3>
+  <pre>{{ response | json }}</pre>
+</div>
+

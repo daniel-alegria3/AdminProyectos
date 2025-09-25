@@ -44,7 +44,7 @@ userAuth.register = async (req, res) => {
       name,
       email,
       password,
-      phone_number,
+      phone_number || null,
       false,
     ]);
 
@@ -91,7 +91,7 @@ userAuth.login = async (req, res) => {
     }
 
     const [data] = await db.execute('CALL LoginUser(?, ?)', [email, password]);
-    const result = data[0];
+    const result = data[0][0];
 
     if (!result['is_enabled']) {
       return res.status(500).json({

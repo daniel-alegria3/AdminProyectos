@@ -11,7 +11,7 @@ router.post('/user/register', userAuth.register);
 router.post('/user/login', userAuth.login);
 router.post('/user/logout', userAuth.requireLogin, userAuth.logout);
 router.get('/user/is_admin', userAuth.requireLogin, userAuth.isAdmin);
-// router.get('/is_logged_in', userAuth.isLoggedIn); -- no necesario?
+router.get('/user/is_logged_in', userAuth.isLoggedIn); // no necesario?
 
 const gc = require('../controllers/generalController');
 
@@ -44,13 +44,13 @@ router.get('/project/:project_id/tasks', userAuth.requireLogin, gc.getProjectTas
 router.get( '/project/:project_id/tasks/mine', userAuth.requireLogin, gc.getMyProjectTasks);
 
 /// '/task'
-router.post('/tasks', userAuth.requireLogin, gc.createTask);
+router.post('/task', userAuth.requireLogin, gc.createTask);
 router.post('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
 router.patch('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
-router.patch('/tasks/progress_status', userAuth.requireLogin, gc.updateTaskStatus);
+router.patch('/task/progress_status', userAuth.requireLogin, gc.updateTaskStatus);
 
-router.get('/tasks', userAuth.requireLogin, gc.getUserTasks);
-router.get('/tasks/:task_id', userAuth.requireLogin, gc.getTaskDetails);
+router.get('/task', userAuth.requireLogin, gc.getUserTasks);
+router.get('/task/:task_id', userAuth.requireLogin, gc.getTaskDetails);
 
 /// '/file'
 router.post('/file/to_project', userAuth.requireLogin, gc.uploadProjectFile);
