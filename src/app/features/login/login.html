@@ -1,0 +1,19 @@
+<div class="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+  <form class="max-w-md w-full bg-white p-6 rounded shadow" (ngSubmit)="submit()" [formGroup]="form" novalidate>
+    <h1 class="text-xl font-semibold mb-4">Iniciar sesión</h1>
+
+    <label class="block mb-2 text-sm">Email</label>
+    <input formControlName="email" type="email" class="w-full p-2 border rounded mb-3" />
+
+    <label class="block mb-2 text-sm">Contraseña</label>
+    <input formControlName="password" type="password" class="w-full p-2 border rounded mb-3" />
+
+    <div *ngIf="error()" class="text-red-600 mb-2">{{ error() }}</div>
+
+    <div class="flex justify-end">
+      <button [disabled]="loading()" class="px-4 py-2 rounded bg-blue-600 text-white">
+        {{ loading() ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </div>
+  </form>
+</div>
