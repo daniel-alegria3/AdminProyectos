@@ -1,0 +1,48 @@
+<div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded p-6 w-full max-w-lg">
+    <h3 class="text-lg font-semibold mb-4">{{ form.value.id_user ? 'Editar usuario' : 'Crear usuario' }}</h3>
+
+    <form (ngSubmit)="submit()" [formGroup]="form" class="space-y-3" novalidate>
+      <div>
+        <label class="block text-sm">Nombre completo</label>
+        <input formControlName="name" class="w-full p-2 border rounded" />
+      </div>
+
+      <div>
+        <label class="block text-sm">Email</label>
+        <input formControlName="email" type="email" class="w-full p-2 border rounded" />
+      </div>
+
+      <div>
+        <label class="block text-sm">Contraseña <span class="text-xs text-gray-500">(dejar vacío para no cambiar)</span></label>
+        <input formControlName="password" type="password" class="w-full p-2 border rounded" />
+      </div>
+
+      <div>
+        <label class="block text-sm">Teléfono</label>
+        <input formControlName="phone_number" class="w-full p-2 border rounded" />
+      </div>
+
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" formControlName="is_admin" />
+          <span>Administrador</span>
+        </label>
+
+        <label class="flex items-center gap-2">
+          <select formControlName="account_status" class="p-1 border rounded">
+            <option value="ENABLED">Habilitado</option>
+            <option value="DISABLED">Deshabilitado</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" (click)="cancel()" class="px-3 py-2 rounded border">Cancelar</button>
+        <button type="submit" [disabled]="isSubmitting()" class="px-3 py-2 rounded bg-blue-600 text-white">
+          {{ isSubmitting() ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
