@@ -1,0 +1,280 @@
+<div class="user-management-container">
+  <!-- Header -->
+  <div class="header">
+    <h1 class="title">Gestión de Usuarios</h1>
+    <button class="btn btn-primary" (click)="openCreateModal()" [disabled]="loading">
+      <span class="btn-icon">+</span>
+      Crear Usuario
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="error" class="alert alert-error">
+    <span class="alert-icon">⚠</span>
+    {{ error }}
+  </div>
+
+  <div *ngIf="success" class="alert alert-success">
+    <span class="alert-icon">✓</span>
+    {{ success }}
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <!-- Users Table -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Estado</th>
+          <th>Admin</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users" class="user-row">
+          <td>{{ user.user_id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.phone_number || '-' }}</td>
+          <td>
+            <span class="status-badge" [ngClass]="getUserStatusClass(user)">
+              {{ getUserStatusText(user) }}
+            </span>
+          </td>
+          <td>
+            <span class="admin-badge" [ngClass]="user.is_admin ? 'admin-yes' : 'admin-no'">
+              {{ user.is_admin ? 'Sí' : 'No' }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <button
+              class="btn btn-sm btn-secondary"
+              (click)="openEditModal(user)"
+              [disabled]="loading"
+              title="Editar usuario">
+              ✏️
+            </button>
+            <button
+              class="btn btn-sm"
+              [ngClass]="user.is_enabled ? 'btn-warning' : 'btn-success'"
+              (click)="toggleUserStatus(user)"
+              [disabled]="loading"
+              [title]="user.is_enabled ? 'Deshabilitar usuario' : 'Habilitar usuario'">
+              {{ user.is_enabled ? '🚫' : '✅' }}
+            </button>
+            <button
+              class="btn btn-sm btn-danger"
+              (click)="openDeleteModal(user)"
+              [disabled]="loading"
+              title="Eliminar usuario">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div *ngIf="users.length === 0" class="empty-state">
+      <p>No hay usuarios registrados</p>
+    </div>
+  </div>
+
+  <!-- Create User Modal -->
+  <div class="modal-overlay" *ngIf="showCreateModal" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Crear Nuevo Usuario</h2>
+        <button class="modal-close" (click)="closeModals()">&times;</button>
+      </div>
+
+      <form (ngSubmit)="createUser()" #createUserForm="ngForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="createName">Nombre *</label>
+            <input
+              type="text"
+              id="createName"
+              [(ngModel)]="createForm.name"
+              name="name"
+              required
+              class="form-input"
+              placeholder="Ingresa el nombre completo">
+          </div>
+
+          <div class="form-group">
+            <label for="createEmail">Email *</label>
+            <input
+              type="email"
+              id="createEmail"
+              [(ngModel)]="createForm.email"
+              name="email"
+              required
+              class="form-input"
+              placeholder="usuario@ejemplo.com">
+          </div>
+
+          <div class="form-group">
+            <label for="createPassword">Contraseña *</label>
+            <input
+              type="password"
+              id="createPassword"
+              [(ngModel)]="createForm.password"
+              name="password"
+              required
+              class="form-input"
+              placeholder="Contraseña segura">
+          </div>
+
+          <div class="form-group">
+            <label for="createPhone">Teléfono</label>
+            <input
+              type="tel"
+              id="createPhone"
+              [(ngModel)]="createForm.phone_number"
+              name="phone"
+              class="form-input"
+              placeholder="+51 999 999 999">
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [(ngModel)]="createForm.is_admin"
+                name="isAdmin"
+                class="form-checkbox">
+              <span class="checkbox-text">Es administrador</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModals()">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="loading || !createUserForm.valid">
+            {{ loading ? 'Creando...' : 'Crear Usuario' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div class="modal-overlay" *ngIf="showEditModal" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Editar Usuario</h2>
+        <button class="modal-close" (click)="closeModals()">&times;</button>
+      </div>
+
+      <form (ngSubmit)="updateUser()" #editUserForm="ngForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="editName">Nombre</label>
+            <input
+              type="text"
+              id="editName"
+              [(ngModel)]="editForm.name"
+              name="editName"
+              class="form-input"
+              placeholder="Nombre completo">
+          </div>
+
+          <div class="form-group">
+            <label for="editEmail">Email</label>
+            <input
+              type="email"
+              id="editEmail"
+              [(ngModel)]="editForm.email"
+              name="editEmail"
+              class="form-input"
+              placeholder="usuario@ejemplo.com">
+          </div>
+
+          <div class="form-group">
+            <label for="editPhone">Teléfono</label>
+            <input
+              type="tel"
+              id="editPhone"
+              [(ngModel)]="editForm.phone_number"
+              name="editPhone"
+              class="form-input"
+              placeholder="+51 999 999 999">
+          </div>
+
+          <div class="form-group">
+            <label for="editStatus">Estado de cuenta</label>
+            <select
+              id="editStatus"
+              [(ngModel)]="editForm.account_status"
+              name="editStatus"
+              class="form-select">
+              <option value="ENABLED">Habilitado</option>
+              <option value="DISABLED">Deshabilitado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModals()">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="loading">
+            {{ loading ? 'Actualizando...' : 'Actualizar Usuario' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete User Modal -->
+  <div class="modal-overlay" *ngIf="showDeleteModal" (click)="closeModals()">
+    <div class="modal modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmar Eliminación</h2>
+        <button class="modal-close" (click)="closeModals()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="delete-confirmation">
+          <div class="warning-icon">⚠️</div>
+          <p>¿Estás seguro de que deseas eliminar al usuario?</p>
+          <div class="user-info" *ngIf="selectedUser">
+            <strong>{{ selectedUser.name }}</strong><br>
+            <span class="text-muted">{{ selectedUser.email }}</span>
+          </div>
+          <p class="warning-text">Esta acción no se puede deshacer.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeModals()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          (click)="deleteUser()"
+          [disabled]="loading">
+          {{ loading ? 'Eliminando...' : 'Eliminar Usuario' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
