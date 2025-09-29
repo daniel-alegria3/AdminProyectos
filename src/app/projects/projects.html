@@ -1,0 +1,12 @@
+<div class="proj-container">
+  <div class="proj-bg"></div>
+
+  <div class="proj-header">
+    <h1 class="proj-title">{{ title() }}</h1>
+    <button class="btn btn-primary" (click)="openCreate()">+ Nuevo Proyecto</button>
+  </div>
+
+  <project-list></project-list>
+
+  <create-project *ngIf="showCreate" (closed)="closeCreate()" (created)="onCreated()"></create-project>
+</div>
