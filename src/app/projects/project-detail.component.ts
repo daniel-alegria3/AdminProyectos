@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ProjectService } from './project.service';
@@ -7,6 +7,7 @@ import { ProjectService } from './project.service';
   selector: 'project-detail',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
   <div class="pd-overlay" (click)="close()">
     <div class="pd-modal" (click)="$event.stopPropagation()">
@@ -109,7 +110,11 @@ export class ProjectDetailComponent implements OnInit {
   members: any[] = [];
   files: any[] = [];
 
-  constructor(private svc: ProjectService, private router: Router) {}
+  constructor(
+    private svc: ProjectService,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     if (!this.project_id) return;
@@ -118,6 +123,8 @@ export class ProjectDetailComponent implements OnInit {
 
   fetch() {
     this.loading = true;
+    this.cdr.markForCheck();
+
     this.svc.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
         const data = Array.isArray(r?.data) ? r.data : [];
@@ -143,8 +150,12 @@ export class ProjectDetailComponent implements OnInit {
           filename: f.filename ?? f.name ?? 'archivo'
         }));
         this.loading = false;
+        this.cdr.markForCheck();
       },
-      error: () => { this.loading = false; }
+      error: () => {
+        this.loading = false;
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -152,3 +163,4 @@ export class ProjectDetailComponent implements OnInit {
   goTasks() { this.router.navigate(['/task'], { queryParams: { project_id: this.project_id } }); }
   close(){ this.closed.emit(); }
 }
+

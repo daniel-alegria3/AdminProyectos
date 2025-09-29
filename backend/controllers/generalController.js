@@ -161,7 +161,6 @@ const userController = {
       res.json({
         success: true,
         message: 'Usuario actualizado exitosamente',
-        data: rows[0][0],
       });
     } catch (error) {
       handleError(res, error);
@@ -301,8 +300,8 @@ const userController = {
       const [rows] = await db.execute('CALL CreateProject(?, ?, ?, ?)', [
         creator_user_id,
         title,
-        start_date,
-        end_date,
+        start_date || null,
+        end_date || null,
       ]);
 
       res.json({
@@ -317,12 +316,13 @@ const userController = {
 
   updateProject: async (req, res) => {
     try {
+      console.error("no way");
       const { project_id, title, visibility, start_date, end_date } = req.body;
-      const creator_user_id = req.user.id_user;
+      const creator_user_id = req.session.user_id;
 
       const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?)', [
-        project_id,
-        creator_user_id,
+        parseInt(project_id),
+        parseInt(creator_user_id),
         title || null,
         visibility || null,
         start_date || null,
@@ -366,7 +366,6 @@ const userController = {
 
   getAllProjects: async (req, res) => {
     try {
-      console.log("hola");
       const [rows] = await db.execute('CALL GetAllProjects(?)', [null]);
       res.json({
         success: true,
@@ -489,7 +488,7 @@ const userController = {
     try {
       const creator_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [user, null]);
+      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [creator_user_id, null]);
       res.json({
         success: true,
         message: 'Tareas del usuario recuperados exitosamente',

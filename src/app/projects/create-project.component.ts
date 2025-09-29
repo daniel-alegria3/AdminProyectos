@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from './project.service';
@@ -8,6 +8,7 @@ import { UserLite } from './model';
   selector: 'create-project',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
   <div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4" (click)="close()">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl" (click)="$event.stopPropagation()">
@@ -106,7 +107,10 @@ export class CreateProjectComponent {
   success = false;
   submitting = false;
 
-  constructor(private projectSvc: ProjectService) {
+  constructor(
+    private projectSvc: ProjectService,
+    private cdr: ChangeDetectorRef
+  ) {
     this.fetchUsers();
   }
 
@@ -115,17 +119,21 @@ export class CreateProjectComponent {
       next: (r) => {
         if (r?.success && Array.isArray(r.data)) {
           this.users = r.data as any;
+          this.cdr.markForCheck();
         }
       },
-      error: (e) => console.error('No se pudieron cargar usuarios', e)
+      error: (e) => {
+        console.error('No se pudieron cargar usuarios', e);
+        this.cdr.markForCheck();
+      }
     });
   }
 
-  toggleUser(userId: number, checkbox: HTMLInputElement) {
-  if (checkbox.checked) this.selectedUserIds.add(userId);
-  else this.selectedUserIds.delete(userId);
-}
-
+  toggleUser(userId: number, checked: boolean) {
+    if (checked) this.selectedUserIds.add(userId);
+    else this.selectedUserIds.delete(userId);
+    this.cdr.markForCheck();
+  }
 
   onFiles(ev: Event) {
     const input = ev.target as HTMLInputElement;
@@ -136,6 +144,7 @@ export class CreateProjectComponent {
         if (this.files[i].size > 10 * 1024 * 1024) {
           this.message = `El archivo "${this.files[i].name}" supera 10MB.`;
           this.success = false;
+          this.cdr.markForCheck();
           input.value = '';
           this.files = null;
           break;
@@ -148,6 +157,7 @@ export class CreateProjectComponent {
     this.message = '';
     this.success = false;
     this.submitting = true;
+    this.cdr.markForCheck();
 
     this.projectSvc.createProject({
       title: this.title.trim(),
@@ -201,8 +211,9 @@ export class CreateProjectComponent {
             next: () => afterUpload(),
             error: () => {
               // Continuar aunque falle la subida
-              afterUpload();
               this.message = 'Proyecto creado; error al subir algunos archivos.';
+              this.cdr.markForCheck();
+              afterUpload();
             }
           });
         } else {
@@ -229,6 +240,7 @@ export class CreateProjectComponent {
       this.submitting = false;
       this.success = false;
       this.message = 'No se pudo guardar localmente.';
+      this.cdr.markForCheck();
     }
   }
 
@@ -236,6 +248,7 @@ export class CreateProjectComponent {
     this.submitting = false;
     this.success = true;
     this.message = msg;
+    this.cdr.markForCheck();
     this.created.emit();
     setTimeout(() => this.close(), 800);
   }
@@ -244,3 +257,4 @@ export class CreateProjectComponent {
     this.closed.emit();
   }
 }
+

@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Project } from './model';
 import { ProjectService } from './project.service';
@@ -105,7 +105,7 @@ export class ProjectListComponent implements OnInit {
   toast = { show: false, text: '', ok: true };
   private toastTimer: any;
 
-  constructor(private svc: ProjectService) {}
+  constructor(private svc: ProjectService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() { this.refresh(); }
 
@@ -128,8 +128,13 @@ export class ProjectListComponent implements OnInit {
         } else {
           this.projects = this.localFallback();
         }
+        this.cdr.detectChanges();
       },
-      error: () => { this.loading = false; this.projects = this.localFallback(); }
+      error: () => {
+        this.loading = false;
+        this.projects = this.localFallback();
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -166,8 +171,12 @@ export class ProjectListComponent implements OnInit {
           } else {
             this.showToast(res?.message || 'No se pudo eliminar', false);
           }
+          this.cdr.detectChanges();
         },
-        error: () => { this.showToast('Error al eliminar', false); }
+        error: () => {
+          this.showToast('Error al eliminar', false);
+          this.cdr.detectChanges();
+        }
       });
   }
 

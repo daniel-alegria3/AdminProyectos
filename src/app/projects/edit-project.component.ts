@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from './project.service';
@@ -9,6 +9,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
   selector: 'edit-project',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
   <div class="ep-overlay" (click)="close()">
     <div class="ep-modal" (click)="$event.stopPropagation()">
@@ -224,22 +225,57 @@ export class EditProjectComponent implements OnInit {
   uploading = false;
   msgUpload = ''; okUpload = false;
 
-  constructor(private projects: ProjectService) {}
+  constructor(
+    private projects: ProjectService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     this.title = this.initialTitle;
-    this.start_date = this.initialStart || '';
-    this.end_date = this.initialEnd || '';
+    // Format dates to YYYY-MM-DD if they contain time components
+    this.start_date = this.formatDateForInput(this.initialStart);
+    this.end_date = this.formatDateForInput(this.initialEnd);
     this.fetchAll();
+  }
+
+  private formatDateForInput(dateValue: string): string {
+    if (!dateValue) return '';
+
+    // If already in YYYY-MM-DD format, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+
+    // If it contains time component, extract just the date part
+    if (dateValue.includes('T')) {
+      return dateValue.split('T')[0];
+    }
+
+    // Try to parse as Date and format
+    const date = new Date(dateValue);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+
+    console.log("ima kill: ",dateValue);
+    return dateValue;
   }
 
   // ---- carga inicial
   fetchAll() {
     this.loading = true;
+    this.cdr.markForCheck();
 
     this.projects.getAllUsers().subscribe({
-      next: (r:any) => { if (r?.success) this.allUsers = r.data || []; },
-      error: () => {}
+      next: (r:any) => {
+        if (r?.success) {
+          this.allUsers = r.data || [];
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => {
+        this.cdr.markForCheck();
+      }
     });
 
     this.projects.getProjectDetails(this.project_id).subscribe({
@@ -260,30 +296,48 @@ export class EditProjectComponent implements OnInit {
           filename: f.filename ?? f.name ?? 'archivo'
         }));
         this.loading = false;
+        this.cdr.markForCheck();
       },
-      error: () => { this.loading = false; }
+      error: () => {
+        this.loading = false;
+        this.cdr.markForCheck();
+      }
     });
   }
 
   // ---- DATOS
   saveDatos() {
-    this.saving = true; this.msg = ''; this.ok = false;
+    this.saving = true;
+    this.msg = '';
+    this.ok = false;
+    this.cdr.markForCheck();
+
+    // Ensure dates are in YYYY-MM-DD format (strip time if present)
+    const cleanStartDate = this.start_date ? this.start_date.split('T')[0] : undefined;
+    const cleanEndDate = this.end_date ? this.end_date.split('T')[0] : undefined;
+
     this.projects.updateProject({
       project_id: this.project_id,
       title: this.title.trim(),
-      start_date: this.start_date || undefined,
-      end_date: this.end_date || undefined
+      start_date: cleanStartDate,
+      end_date: cleanEndDate
     }).subscribe({
       next: (r:any) => {
         this.saving = false;
         if (r?.success) {
-          this.ok = true; this.msg = 'Proyecto actualizado';
+          this.ok = true;
+          this.msg = 'Proyecto actualizado';
           this.saved.emit();
         } else {
           this.msg = r?.message || 'No se pudo actualizar';
         }
+        this.cdr.markForCheck();
       },
-      error: () => { this.saving = false; this.msg = 'Error al actualizar'; }
+      error: () => {
+        this.saving = false;
+        this.msg = 'Error al actualizar';
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -291,11 +345,15 @@ export class EditProjectComponent implements OnInit {
   toggleAssign(userId: number, checked: boolean) {
     if (checked) this.pendingAssign.add(userId);
     else this.pendingAssign.delete(userId);
+    this.cdr.markForCheck();
   }
 
   assignSelected() {
     if (this.pendingAssign.size === 0) return;
-    this.assigning = true; this.msgAssign = ''; this.okAssign = false;
+    this.assigning = true;
+    this.msgAssign = '';
+    this.okAssign = false;
+    this.cdr.markForCheck();
 
     const ids = Array.from(this.pendingAssign);
     let done = 0, failed = 0;
@@ -315,6 +373,7 @@ export class EditProjectComponent implements OnInit {
           ? 'Usuarios asignados correctamente'
           : `Asignados con errores (fallas: ${failed})`;
         this.pendingAssign.clear();
+        this.cdr.markForCheck();
         this.refreshMembers();
       }
     };
@@ -332,6 +391,10 @@ export class EditProjectComponent implements OnInit {
           email: m.email ?? null,
           role: m.role ?? m.member_role ?? null
         }));
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.cdr.markForCheck();
       }
     });
   }
@@ -340,18 +403,29 @@ export class EditProjectComponent implements OnInit {
   onFiles(ev: Event) {
     const input = ev.target as HTMLInputElement;
     this.filesToUpload = input.files;
+    this.cdr.markForCheck();
   }
 
   upload() {
     if (!this.filesToUpload) return;
-    this.uploading = true; this.msgUpload = ''; this.okUpload = false;
+    this.uploading = true;
+    this.msgUpload = '';
+    this.okUpload = false;
+    this.cdr.markForCheck();
 
     this.projects.uploadProjectFiles(this.project_id, this.filesToUpload).subscribe({
       next: () => {
-        this.uploading = false; this.okUpload = true; this.msgUpload = 'Archivos subidos';
+        this.uploading = false;
+        this.okUpload = true;
+        this.msgUpload = 'Archivos subidos';
+        this.cdr.markForCheck();
         this.refreshFiles();
       },
-      error: () => { this.uploading = false; this.msgUpload = 'Error al subir archivos'; }
+      error: () => {
+        this.uploading = false;
+        this.msgUpload = 'Error al subir archivos';
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -365,6 +439,10 @@ export class EditProjectComponent implements OnInit {
           file_id: f.file_id ?? f.id ?? null,
           filename: f.filename ?? f.name ?? 'archivo'
         }));
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.cdr.markForCheck();
       }
     });
   }
