@@ -41,7 +41,7 @@
   z-index: -1;              /* detrás del contenido, delante del body */
   background:
     linear-gradient(180deg, rgba(255,255,255,0.6), rgba(247,250,255,0.6)),
-    url("../../assets/img/FondoProy.png") center / cover no-repeat;
+    url("FondoProy.png") center / cover no-repeat;
   pointer-events: none;
 }
 
