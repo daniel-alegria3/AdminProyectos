@@ -1,0 +1,94 @@
+:root {
+  --blue-50: #eaf4ff;
+  --blue-100: #d7ebff;
+  --blue-200: #aedaff;
+  --blue-400: #5aaeff;
+  --blue-500: #2f8cff;      /* azul claro predominante */
+  --blue-600: #1f6ed4;
+  --text-900: #17223b;
+  --text-700: #334155;
+  --text-500: #64748b;
+  --gray-100: #f6f7fb;
+  --gray-200: #eceff5;
+  --white: #fff;
+  --shadow-sm: 0 2px 8px rgba(23, 34, 59, 0.08);
+  --shadow-md: 0 8px 24px rgba(23, 34, 59, 0.12);
+  --radius-xl: 16px;
+}
+
+/* Contenedor principal de la página /projects */
+/* Fondo solo para la página de projects con imagen al 40% */
+/* Fondo solo para la página de projects con imagen al 40% */
+.proj-container {
+  position: relative;   /* crea contexto */
+  z-index: 0;           /* contenido usará z-index:1 */
+  isolation: isolate;   /* asegura capas limpias */
+}
+
+/* Pseudo capa de fondo por detrás del contenido, por delante del <body> */
+/* Fondo solo para la página de projects con imagen ~40% */
+.proj-container {
+  position: relative;       /* crea contexto */
+  isolation: isolate;       /* capas limpias */
+  min-height: 100vh;        /* cubre toda la altura de la ventana */
+  z-index: 0;
+}
+
+.proj-container::before {
+  content: "";
+  position: fixed;          /* cubre toda la ventana, no hace scroll */
+  inset: 0;
+  z-index: -1;              /* detrás del contenido, delante del body */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.6), rgba(247,250,255,0.6)),
+    url("FondoProy.png") center / cover no-repeat;
+  pointer-events: none;
+}
+
+/* Garantiza que el contenido quede por delante del pseudo-fondo */
+.proj-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+
+
+/* Header de la página */
+.proj-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.proj-title {
+  margin: 0;
+  color: var(--text-900);
+  font-size: 28px;
+  letter-spacing: 0.2px;
+}
+
+/* Botones base */
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .2s ease;
+}
+
+/* Botón primario azul */
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue-500), var(--blue-400));
+  color: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:active { transform: translateY(0); }
+.btn-danger { background:#ffecec; color:#b42318; border:1px solid #ffb3b3; }
+.btn-danger:hover { background:#ffdede; }
+.btn-outline { background:#fff; border:1px solid #aedaff; color:#1f6ed4; }
+.btn-outline:hover { background:#d7ebff; }
+

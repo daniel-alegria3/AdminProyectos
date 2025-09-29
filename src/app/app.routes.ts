@@ -3,7 +3,6 @@ import { Routes } from '@angular/router';
 import { Auth } from './auth/auth';
 import { Home } from '@/home/home';
 import { Task } from '@/task/task';
-
 import { BackendTest } from './backend-test/backend-test';
 
 export const routes: Routes = [
@@ -13,6 +12,8 @@ export const routes: Routes = [
 
   { path: 'backend-test', component: BackendTest },
 
-  { path: '', redirectTo: 'home', pathMatch: 'full' },
-  { path: '**', redirectTo: '' }, // TODO: create 404 page
+  { path: 'projects', loadComponent: () => import('./projects/project.page').then(m => m.ProjectsPage) },
+
+  { path: '', redirectTo: '/projects', pathMatch: 'full' },
+  { path: '**', redirectTo: '/projects' },
 ];
