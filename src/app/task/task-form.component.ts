@@ -87,17 +87,25 @@ export class TaskFormComponent {
   }
 
   cargarUsuarios() {
-    // Intentar cargar usuarios del backend
+    console.log('🔄 Cargando usuarios desde backend...');
+    
+    // Cargar usuarios SOLO del backend
     this.taskService.getAllUsers().subscribe({
       next: (response) => {
+        console.log('👥 Respuesta usuarios backend:', response);
+        
         if (response?.success && response?.data) {
           this.usuariosDisponibles = response.data.map((user: any) => user.name || user.email);
+          console.log(`✅ ${this.usuariosDisponibles.length} usuarios cargados desde backend:`, this.usuariosDisponibles);
+        } else {
+          console.log('⚠️ Backend respondió pero sin usuarios');
+          this.usuariosDisponibles = [];
         }
-        // Si no hay usuarios del backend, mantiene los predeterminados
       },
       error: (error) => {
-        console.error('Error al cargar usuarios del backend, usando lista predeterminada:', error);
-        // Mantiene los usuarios predeterminados ya definidos arriba
+        console.error('❌ Error al cargar usuarios del backend:', error);
+        console.error('🔧 Verifica que el backend esté ejecutándose en http://localhost:5000');
+        this.usuariosDisponibles = [];
       }
     });
   }
@@ -173,12 +181,9 @@ export class TaskFormComponent {
 
   guardarEnLocalStorage() {
     this.loading = false;
-    const tareas = JSON.parse(localStorage.getItem('tareas') || '[]');
-    tareas.push({...this.tarea});
-    localStorage.setItem('tareas', JSON.stringify(tareas));
-    this.mensaje = 'Tarea guardada localmente (backend no disponible)';
-    this.resetForm();
-    this.tareaCreada.emit();
+    this.mensaje = '❌ Error: Backend no disponible. No se pudo crear la tarea.';
+    console.error('🚫 Backend no disponible - tarea NO guardada');
+    // NO guardar en localStorage, solo usar backend
   }
 
   resetForm() {
