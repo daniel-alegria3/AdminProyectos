@@ -91,6 +91,7 @@ userAuth.login = async (req, res) => {
     }
 
     const [data] = await db.execute('CALL LoginUser(?, ?)', [email, password]);
+    console.log(data[0]);
     const result = data[0][0];
 
     if (!result['is_enabled']) {

@@ -199,7 +199,8 @@ BEGIN
   FROM `User`
   WHERE email = p_email
     AND password = p_password
-    AND account_status = 'ENABLED';
+    -- AND account_status = 'ENABLED'
+    ;
 END; //
 
 --------------------------------------------------------------------------------
