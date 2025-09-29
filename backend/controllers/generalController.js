@@ -488,7 +488,7 @@ const userController = {
     try {
       const creator_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [user, null]);
+      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [creator_user_id, null]);
       res.json({
         success: true,
         message: 'Tareas del usuario recuperados exitosamente',
