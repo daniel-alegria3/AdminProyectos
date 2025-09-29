@@ -366,6 +366,7 @@ const userController = {
 
   getAllProjects: async (req, res) => {
     try {
+      console.log("hola");
       const [rows] = await db.execute('CALL GetAllProjects(?)', [null]);
       res.json({
         success: true,

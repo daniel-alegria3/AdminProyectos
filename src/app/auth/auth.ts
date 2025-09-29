@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from './auth.service';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-auth',
@@ -73,21 +74,15 @@ export class Auth {
         if (response.success) {
           this.successMessage = response.message;
 
-          let isAdmin = false;
-          // Store user data
-          if (response.data?.user_id) {
-            localStorage.setItem('user_id', response.data.user_id.toString());
-          }
-          if (response.data?.is_admin !== undefined) {
-            isAdmin = response.data.is_admin;
-            localStorage.setItem('is_admin', response.data.is_admin.toString());
-          }
-          // Navigate to dashboard or home
+          // Service already handles storage and state
+          const isAdmin = response.data?.is_admin || false;
+
+          // Navigate based on user role
           setTimeout(() => {
             if (isAdmin) {
               this.router.navigate(['/admin']);
             } else {
-              this.router.navigate(['/home']);
+              this.router.navigate(['/user']);
             }
           }, 1000);
         } else {
