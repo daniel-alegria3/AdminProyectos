@@ -11,7 +11,10 @@ import { TaskService } from './task.service';
       <div class="panel-header">
         <h2>Panel de Tareas</h2>
         <div class="connection-status" *ngIf="loading">
-          🔄 Conectando con backend...
+          🔄 Cargando desde base de datos...
+        </div>
+        <div class="backend-info" *ngIf="!loading">
+          🔗 Datos desde: Backend (MariaDB)
         </div>
       </div>
       <div class="filters">
@@ -35,8 +38,12 @@ import { TaskService } from './task.service';
         </div>
       </div>
 
-      <div *ngIf="tareasFiltradas.length === 0" class="no-tasks">
-        No hay tareas que mostrar. ¡Crea tu primera tarea!
+      <div *ngIf="!loading && tareasFiltradas.length === 0" class="no-tasks">
+        📋 No hay tareas en la base de datos. ¡Crea tu primera tarea!
+      </div>
+      
+      <div *ngIf="loading" class="loading-tasks">
+        🔄 Cargando tareas desde el backend...
       </div>
 
       <div *ngFor="let tarea of tareasFiltradas" class="task-item">
@@ -123,97 +130,44 @@ export class TaskListComponent implements OnInit {
 
   cargarTareas() {
     this.loading = true;
+    this.tareas = []; // Limpiar tareas existentes
 
-    // Intentar cargar desde el backend
+    // Cargar SOLO desde el backend
     this.taskService.getUserTasks().subscribe({
       next: (response) => {
         this.loading = false;
+        console.log('Respuesta del backend:', response);
+        
         if (response?.success && response?.data) {
           // Mapear los datos del backend al formato del frontend
           this.tareas = response.data.map((task: any) => ({
-            titulo: task.title || task.titulo,
-            descripcion: task.description || task.descripcion,
-            fechaInicio: task.start_date || task.fechaInicio,
-            fechaFin: task.due_date || task.fechaFin,
-            usuario: task.assigned_user_name || task.assigned_user || task.usuario,
+            id: task.id_task || task.id,
+            titulo: task.title || task.titulo || 'Sin título',
+            descripcion: task.description || task.descripcion || 'Sin descripción',
+            fechaInicio: task.start_date || task.fechaInicio || '',
+            fechaFin: task.due_date || task.fechaFin || '',
+            usuario: task.assigned_user_name || task.assigned_user || task.usuario || 'Sin asignar',
             proyecto: task.project_name || task.proyecto || 'Proyecto General',
-            archivos: task.files || task.archivos || []
+            archivos: task.files || task.archivos || [],
+            estado: task.progress_status || task.estado || 'Pendiente'
           }));
+          
+          console.log(`✅ ${this.tareas.length} tareas cargadas desde el backend`);
         } else {
-          // Si no hay respuesta exitosa, usar tareas ficticias como fallback
-          this.tareas = this.crearTareasFicticias();
+          console.log('⚠️ Backend respondió pero sin datos de tareas');
+          this.tareas = [];
         }
       },
       error: (error) => {
         this.loading = false;
-        console.error('Error al conectar con backend, usando datos locales:', error);
-        // Si hay error de conexión, usar localStorage o tareas ficticias
-        const tareasGuardadas = JSON.parse(localStorage.getItem('tareas') || '[]');
-        if (tareasGuardadas.length > 0) {
-          this.tareas = tareasGuardadas;
-        } else {
-          this.tareas = this.crearTareasFicticias();
-        }
+        console.error('❌ Error al conectar con backend:', error);
+        console.error('🔧 Verifica que el backend esté ejecutándose en http://localhost:5000');
+        this.tareas = [];
       }
     });
   }
 
-  crearTareasFicticias(): Tarea[] {
-    return [
-      {
-        titulo: 'Implementar Sistema de Login',
-        descripcion: 'Desarrollar el sistema de autenticación de usuarios con validación de credenciales',
-        fechaInicio: '2025-09-15',
-        fechaFin: '2025-09-25',
-        usuario: 'Juan Pérez',
-        proyecto: 'Proyecto General',
-        archivos: [
-          { nombre: 'especificaciones_login.pdf', url: '' },
-          { nombre: 'mockups_ui.jpg', url: '' }
-        ]
-      },
-      {
-        titulo: 'Diseño de Base de Datos',
-        descripcion: 'Crear el diagrama entidad-relación y definir las tablas principales del sistema',
-        fechaInicio: '2025-09-10',
-        fechaFin: '2025-09-20',
-        usuario: 'María García',
-        proyecto: 'Proyecto General',
-        archivos: [
-          { nombre: 'diagrama_er.pdf', url: '' }
-        ]
-      },
-      {
-        titulo: 'Pruebas de Integración',
-        descripcion: 'Ejecutar pruebas de integración para verificar el correcto funcionamiento de los módulos',
-        fechaInicio: '2025-09-22',
-        fechaFin: '2025-09-30',
-        usuario: 'Carlos López',
-        proyecto: 'Proyecto General',
-        archivos: []
-      },
-      {
-        titulo: 'Documentación de API',
-        descripcion: 'Documentar todos los endpoints de la API REST con ejemplos de uso',
-        fechaInicio: '2025-09-18',
-        fechaFin: '2025-09-28',
-        usuario: 'Ana Martín',
-        proyecto: 'Proyecto General',
-        archivos: [
-          { nombre: 'api_documentation.docx', url: '' }
-        ]
-      },
-      {
-        titulo: 'Optimización de Performance',
-        descripcion: 'Analizar y optimizar el rendimiento de las consultas a la base de datos',
-        fechaInicio: '2025-09-25',
-        fechaFin: '2025-10-05',
-        usuario: 'Luis Rodríguez',
-        proyecto: 'Proyecto General',
-        archivos: []
-      }
-    ];
-  }
+
 
   editarTarea(tarea: Tarea) {
     // Por ahora solo mostrar un alert, luego se puede implementar un modal de edición
@@ -238,13 +192,20 @@ export class TaskListComponent implements OnInit {
     this.tareaAEliminar = null;
   }
 
-  eliminarTarea(tarea: Tarea) {
-    const index = this.tareas.findIndex(t => t === tarea);
+  eliminarTarea(tarea: any) {
+    if (!tarea.id) {
+      console.error('No se puede eliminar: tarea sin ID');
+      alert('Error: No se puede eliminar esta tarea');
+      return;
+    }
+
+    // TODO: Implementar eliminación en el backend cuando esté disponible
+    // Por ahora solo eliminar localmente
+    const index = this.tareas.findIndex(t => t.id === tarea.id);
     if (index !== -1) {
       this.tareas.splice(index, 1);
-      // Actualizar localStorage
-      localStorage.setItem('tareas', JSON.stringify(this.tareas));
-      alert('Tarea eliminada correctamente');
+      console.log(`🗑️ Tarea ${tarea.titulo} eliminada localmente`);
+      alert('Tarea eliminada (solo del frontend)');
     }
   }
 

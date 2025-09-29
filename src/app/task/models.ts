@@ -1,4 +1,5 @@
 export interface Tarea {
+  id?: number | string;
   titulo: string;
   descripcion: string;
   fechaInicio: string;
@@ -6,6 +7,7 @@ export interface Tarea {
   usuario: string;
   archivos: Archivo[];
   proyecto: string;
+  estado?: string;
 }
 
 export interface Archivo {

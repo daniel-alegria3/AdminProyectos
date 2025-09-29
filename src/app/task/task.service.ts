@@ -7,7 +7,7 @@ import { Tarea } from './models';
   providedIn: 'root'
 })
 export class TaskService {
-  private apiUrl = 'http://localhost:5000/api/general';
+  private apiUrl = 'http://localhost:5000';
 
   constructor(private http: HttpClient) {}
 
@@ -19,7 +19,10 @@ export class TaskService {
 
   // Obtener tareas del usuario (adaptado al backend existente)
   getUserTasks(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/tasks`, { 
+    console.log('🚀 TaskService: Llamando getUserTasks()');
+    console.log('🔗 URL completa:', `${this.apiUrl}/task`);
+    
+    return this.http.get(`${this.apiUrl}/task`, { 
       headers: this.getHeaders(),
       withCredentials: true 
     });
@@ -36,7 +39,7 @@ export class TaskService {
       project_id: 1 // Proyecto por defecto
     };
 
-    return this.http.post(`${this.apiUrl}/tasks`, taskData, { 
+    return this.http.post(`${this.apiUrl}/task`, taskData, { 
       headers: this.getHeaders(),
       withCredentials: true 
     });
@@ -52,7 +55,7 @@ export class TaskService {
 
   // Actualizar estado de tarea
   updateTaskStatus(taskId: number, status: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/tasks/progress_status`, 
+    return this.http.patch(`${this.apiUrl}/task/progress_status`, 
       { task_id: taskId, progress_status: status }, 
       { 
         headers: this.getHeaders(),
