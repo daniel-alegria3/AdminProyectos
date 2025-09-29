@@ -2,9 +2,8 @@ import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from './project.service';
-import { TaskService } from '../task/task.service'; // reutilizamos tu servicio de tareas
 
-type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
+type TabKey = 'datos' | 'miembros' | 'archivos';
 
 @Component({
   selector: 'edit-project',
@@ -25,12 +24,11 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
         <button class="ep-tab" [class.active]="tab==='datos'" (click)="tab='datos'">Datos</button>
         <button class="ep-tab" [class.active]="tab==='miembros'" (click)="tab='miembros'">Miembros</button>
         <button class="ep-tab" [class.active]="tab==='archivos'" (click)="tab='archivos'">Archivos</button>
-        <button class="ep-tab" [class.active]="tab==='tareas'" (click)="tab='tareas'">Tareas</button>
       </div>
 
       <div class="ep-body" *ngIf="!loading; else loadingTpl">
 
-        <!-- TAB: DATOS -->
+        <!-- DATOS -->
         <form *ngIf="tab==='datos'" class="ep-section" (ngSubmit)="saveDatos()">
           <div class="ep-field">
             <label>Título</label>
@@ -56,7 +54,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
           <div class="ep-msg" [class.ok]="ok" *ngIf="msg">{{ msg }}</div>
         </form>
 
-        <!-- TAB: MIEMBROS -->
+        <!-- MIEMBROS -->
         <div *ngIf="tab==='miembros'" class="ep-section">
           <div class="ep-subheader">
             <div>
@@ -99,7 +97,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
           <div class="ep-msg" [class.ok]="okAssign" *ngIf="msgAssign">{{ msgAssign }}</div>
         </div>
 
-        <!-- TAB: ARCHIVOS -->
+        <!-- ARCHIVOS -->
         <div *ngIf="tab==='archivos'" class="ep-section">
           <div class="ep-subheader">
             <h3>Archivos del proyecto</h3>
@@ -134,47 +132,6 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
           <div class="ep-msg" [class.ok]="okUpload" *ngIf="msgUpload">{{ msgUpload }}</div>
         </div>
 
-        <!-- TAB: TAREAS -->
-        <div *ngIf="tab==='tareas'" class="ep-section">
-          <div class="ep-subheader">
-            <h3>Tareas del proyecto</h3>
-            <button class="btn btn-outline" (click)="refreshTasks()">Actualizar</button>
-          </div>
-
-          <div class="tasks" *ngIf="tasks?.length; else noTasks">
-            <div class="task" *ngFor="let t of tasks">
-              <div class="task-title">🗂️ {{ t.title || t.titulo }}</div>
-              <div class="task-meta">
-                <span *ngIf="t.start_date || t.fechaInicio">Inicio: <b>{{ t.start_date || t.fechaInicio }}</b></span>
-                <span *ngIf="t.end_date || t.fechaFin">Fin: <b>{{ t.end_date || t.fechaFin }}</b></span>
-                <span *ngIf="t.assigned_user_name || t.usuario">Asignado: <b>{{ t.assigned_user_name || t.usuario }}</b></span>
-                <span *ngIf="t.progress_status">Estado: <b>{{ t.progress_status }}</b></span>
-              </div>
-
-              <div class="task-actions">
-                <!-- Cambiar estado -->
-                <select [(ngModel)]="t._nextStatus" name="next_status_{{t.task_id || t.id}}" class="sel">
-                  <option [ngValue]="undefined" disabled>— Cambiar estado —</option>
-                  <option value="TODO">TODO</option>
-                  <option value="IN_PROGRESS">IN_PROGRESS</option>
-                  <option value="DONE">DONE</option>
-                </select>
-                <button class="btn btn-primary" (click)="updateStatus(t)" [disabled]="!t._nextStatus">Guardar</button>
-
-                <!-- Reasignar -->
-                <select [(ngModel)]="t._nextUserId" name="next_user_{{t.task_id || t.id}}" class="sel">
-                  <option [ngValue]="undefined" disabled>— Reasignar a —</option>
-                  <option *ngFor="let u of allUsers" [value]="u.user_id">{{ u.name || u.email }}</option>
-                </select>
-                <button class="btn btn-outline" (click)="reassignTask(t)" [disabled]="!t._nextUserId">Reasignar</button>
-              </div>
-            </div>
-          </div>
-          <ng-template #noTasks><p class="ep-note">No hay tareas para este proyecto.</p></ng-template>
-
-          <div class="ep-msg" [class.ok]="okTask" *ngIf="msgTask">{{ msgTask }}</div>
-        </div>
-
       </div>
 
       <ng-template #loadingTpl>
@@ -202,7 +159,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
   .hint{color:#64748b;font-size:13px;margin:4px 0 0}
 
   .ep-field label{display:block;font-weight:600;margin-bottom:6px;color:#17223b}
-  .ep-field input,.sel{width:100%;border:1px solid #eceff5;border-radius:10px;padding:8px 10px;font-size:14px}
+  .ep-field input{width:100%;border:1px solid #eceff5;border-radius:10px;padding:8px 10px;font-size:14px}
   .ep-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
   .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -218,12 +175,6 @@ type TabKey = 'datos' | 'miembros' | 'archivos' | 'tareas';
   .file-actions{display:flex;gap:8px}
   .file-actions a{color:#1f6ed4;text-decoration:none}
   .file-actions a:hover{text-decoration:underline}
-
-  .tasks{display:grid;gap:10px}
-  .task{border:1px solid #eceff5;border-radius:12px;padding:10px}
-  .task-title{font-weight:700;color:#17223b}
-  .task-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#334155;margin-top:4px}
-  .task-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 
   .ep-actions{display:flex;justify-content:flex-end;gap:8px}
   .btn{border:0;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
@@ -273,11 +224,7 @@ export class EditProjectComponent implements OnInit {
   uploading = false;
   msgUpload = ''; okUpload = false;
 
-  // tareas
-  tasks: any[] = [];
-  msgTask = ''; okTask = false;
-
-  constructor(private projects: ProjectService, private tasksSvc: TaskService) {}
+  constructor(private projects: ProjectService) {}
 
   ngOnInit() {
     this.title = this.initialTitle;
@@ -289,17 +236,15 @@ export class EditProjectComponent implements OnInit {
   // ---- carga inicial
   fetchAll() {
     this.loading = true;
-    // usuarios para miembros/tareas
+
     this.projects.getAllUsers().subscribe({
       next: (r:any) => { if (r?.success) this.allUsers = r.data || []; },
       error: () => {}
     });
 
-    // detalles (para miembros/archivos básicos)
     this.projects.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
         const data = Array.isArray(r?.data) ? r.data : [];
-        // miembros
         this.members = data.filter((x:any) =>
           'user_id' in x || 'member_user_id' in x || x?.name || x?.email
         ).map((m:any) => ({
@@ -308,7 +253,6 @@ export class EditProjectComponent implements OnInit {
           email: m.email ?? null,
           role: m.role ?? m.member_role ?? null
         }));
-        // archivos
         this.files = data.filter((x:any) =>
           'file_id' in x || 'filename' in x || 'name' in x
         ).map((f:any) => ({
@@ -319,9 +263,6 @@ export class EditProjectComponent implements OnInit {
       },
       error: () => { this.loading = false; }
     });
-
-    // tareas del proyecto
-    this.refreshTasks(false);
   }
 
   // ---- DATOS
@@ -429,39 +370,6 @@ export class EditProjectComponent implements OnInit {
   }
 
   fileUrl(id: number) { return this.projects.buildFileDownloadUrl(id); }
-
-  // ---- TAREAS
-  refreshTasks(showMsg: boolean = true) {
-    this.tasksSvc ? this.tasksSvc.getUserTasks() : null; // para tree-shaking del import, no hace nada
-    this.projects.getProjectTasks(this.project_id).subscribe({
-      next: (r:any) => {
-        const rows = Array.isArray(r?.data) ? r.data : [];
-        this.tasks = rows.map((t:any) => ({ ...t, _nextStatus: undefined, _nextUserId: undefined }));
-        if (showMsg) { this.msgTask = 'Tareas actualizadas'; this.okTask = true; setTimeout(()=>this.msgTask='', 1200); }
-      },
-      error: () => { if (showMsg) { this.msgTask = 'Error al cargar tareas'; this.okTask = false; } }
-    });
-  }
-
-  updateStatus(t: any) {
-    if (!t?._nextStatus) return;
-    this.msgTask = ''; this.okTask = false;
-    const taskId = t.task_id ?? t.id;
-    this.tasksSvc.updateTaskStatus(taskId, t._nextStatus).subscribe({
-      next: () => { this.okTask = true; this.msgTask = 'Estado actualizado'; this.refreshTasks(false); },
-      error: () => { this.msgTask = 'Error al actualizar estado'; }
-    });
-  }
-
-  reassignTask(t: any) {
-    if (!t?._nextUserId) return;
-    this.msgTask = ''; this.okTask = false;
-    const taskId = t.task_id ?? t.id;
-    this.tasksSvc.assignUserToTask(taskId, t._nextUserId).subscribe({
-      next: () => { this.okTask = true; this.msgTask = 'Tarea reasignada'; this.refreshTasks(false); },
-      error: () => { this.msgTask = 'Error al reasignar tarea'; }
-    });
-  }
 
   close(){ this.closed.emit(); }
 }

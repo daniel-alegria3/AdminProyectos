@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { ProjectService } from './project.service';
 
 @Component({
@@ -27,10 +28,12 @@ import { ProjectService } from './project.service';
             <div><span class="k">Fin</span><span class="v">{{ details?.end_date || '—' }}</span></div>
             <div *ngIf="details?.visibility"><span class="k">Visibilidad</span><span class="v">{{ details?.visibility }}</span></div>
           </div>
-          <p class="pd-note" *ngIf="!details">No se recibió información de resumen desde el backend.</p>
+          <div class="pd-actions">
+            <button class="btn btn-outline" (click)="goTasks()">Ver tareas</button>
+          </div>
         </section>
 
-        <!-- Responsables / Miembros -->
+        <!-- Miembros -->
         <section class="pd-section">
           <h3>Miembros</h3>
           <div class="chips" *ngIf="members?.length; else noMembers">
@@ -59,26 +62,6 @@ import { ProjectService } from './project.service';
             <p class="pd-note">Sin archivos adjuntos.</p>
           </ng-template>
         </section>
-
-        <!-- Tareas -->
-        <section class="pd-section">
-          <h3>Tareas</h3>
-          <div class="tasks" *ngIf="tasks?.length; else noTasks">
-            <div class="task" *ngFor="let t of tasks">
-              <div class="task-title">🗂️ {{ t.title || t.titulo }}</div>
-              <div class="task-meta">
-                <span *ngIf="t.start_date || t.fechaInicio">Inicio: <b>{{ t.start_date || t.fechaInicio }}</b></span>
-                <span *ngIf="t.end_date || t.fechaFin">Fin: <b>{{ t.end_date || t.fechaFin }}</b></span>
-                <span *ngIf="t.assigned_user_name || t.usuario">Asignado: <b>{{ t.assigned_user_name || t.usuario }}</b></span>
-                <span *ngIf="t.progress_status">Estado: <b>{{ t.progress_status }}</b></span>
-              </div>
-              <div class="task-desc" *ngIf="t.description || t.descripcion">{{ t.description || t.descripcion }}</div>
-            </div>
-          </div>
-          <ng-template #noTasks>
-            <p class="pd-note">No hay tareas para este proyecto.</p>
-          </ng-template>
-        </section>
       </div>
 
       <ng-template #loadingTpl>
@@ -96,11 +79,12 @@ import { ProjectService } from './project.service';
   .pd-id{font-size:12px;color:#64748b}
   .pd-close{border:0;background:transparent;font-size:18px;cursor:pointer;color:#334155}
   .pd-body{padding:16px;display:grid;gap:16px}
-  .pd-section{background:#fff;border:1px solid #eceff5;border-radius:12px;padding:12px}
-  .pd-section h3{margin:0 0 8px 0;color:#17223b}
+  .pd-section{background:#fff;border:1px solid #eceff5;border-radius:12px;padding:12px;display:grid;gap:12px}
+  .pd-section h3{margin:0;color:#17223b}
   .pd-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
   .pd-kv .k{display:block;font-size:12px;color:#64748b}
   .pd-kv .v{display:block;font-weight:600;color:#17223b}
+  .pd-actions{display:flex;gap:8px;justify-content:flex-end}
   .pd-note{font-size:13px;color:#334155}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{background:#f6f7fb;border:1px solid #eceff5;border-radius:999px;padding:6px 10px;color:#17223b;font-weight:600}
@@ -110,12 +94,10 @@ import { ProjectService } from './project.service';
   .file-name{color:#17223b;font-weight:600}
   .file-actions a{color:#1f6ed4;text-decoration:none}
   .file-actions a:hover{text-decoration:underline}
-  .tasks{display:grid;gap:10px}
-  .task{border:1px solid #eceff5;border-radius:12px;padding:10px}
-  .task-title{font-weight:700;color:#17223b}
-  .task-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#334155;margin-top:4px}
-  .task-desc{margin-top:6px;color:#334155}
   .pd-loading{padding:18px;color:#334155}
+  .btn{border:0;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
+  .btn-outline{background:#fff;border:1px solid #aedaff;color:#1f6ed4}
+  .btn-outline:hover{background:#d7ebff}
   `]
 })
 export class ProjectDetailComponent implements OnInit {
@@ -126,24 +108,19 @@ export class ProjectDetailComponent implements OnInit {
   details: any = null;
   members: any[] = [];
   files: any[] = [];
-  tasks: any[] = [];
 
-  constructor(private svc: ProjectService) {}
+  constructor(private svc: ProjectService, private router: Router) {}
 
   ngOnInit() {
     if (!this.project_id) return;
-    this.fetchAll();
+    this.fetch();
   }
 
-  fetchAll() {
+  fetch() {
     this.loading = true;
-
     this.svc.getProjectDetails(this.project_id).subscribe({
-      next: (r: any) => {
-        // Tu SP GetProjectDetails retorna en r.data[0]? o r.data?
+      next: (r:any) => {
         const data = Array.isArray(r?.data) ? r.data : [];
-        // Heurística: primera fila = resumen (si viene), y tablas separadas para members/files en índices siguientes
-        // Como no tenemos estructura exacta, tomamos objetos por claves comunes:
         const first = data?.[0] || null;
         this.details = {
           title: first?.title ?? first?.project_title ?? first?.titulo ?? null,
@@ -151,8 +128,6 @@ export class ProjectDetailComponent implements OnInit {
           end_date: first?.end_date ?? first?.fin ?? null,
           visibility: first?.visibility ?? null
         };
-
-        // Miembros (busca propiedades típicas)
         this.members = data.filter((x:any) =>
           'user_id' in x || 'member_user_id' in x || x?.name || x?.email
         ).map((m:any) => ({
@@ -161,41 +136,19 @@ export class ProjectDetailComponent implements OnInit {
           email: m.email ?? null,
           role: m.role ?? m.member_role ?? null
         }));
-
-        // Archivos (por convención: file_id + filename)
         this.files = data.filter((x:any) =>
           'file_id' in x || 'filename' in x || 'name' in x
         ).map((f:any) => ({
           file_id: f.file_id ?? f.id ?? null,
           filename: f.filename ?? f.name ?? 'archivo'
         }));
-
-        // Luego de detalles, pedimos tareas:
-        this.fetchTasks();
+        this.loading = false;
       },
-      error: (e) => {
-        console.error('Error detalles proyecto', e);
-        this.loading = false;
-        this.fetchTasks(); // igual intentamos tareas
-      }
-    });
-  }
-
-  fetchTasks() {
-    this.svc.getProjectTasks(this.project_id).subscribe({
-      next: (r:any) => {
-        this.loading = false;
-        const rows = Array.isArray(r?.data) ? r.data : [];
-        this.tasks = rows;
-      },
-      error: (e) => {
-        console.error('Error tareas proyecto', e);
-        this.loading = false;
-      }
+      error: () => { this.loading = false; }
     });
   }
 
   fileUrl(id: number) { return this.svc.buildFileDownloadUrl(id); }
-
+  goTasks() { this.router.navigate(['/task'], { queryParams: { project_id: this.project_id } }); }
   close(){ this.closed.emit(); }
 }

@@ -11,9 +11,19 @@ export interface ApiResponse<T = any> {
 export interface Project {
   project_id?: number;
   title: string;
-  start_date?: string;
-  end_date?: string;
-  description?: string; // UI-only
+  start_date?: string | null;
+  end_date?: string | null;
+  visibility?: string | null;
+  description?: string | null; // solo UI
+}
+
+export interface User {
+  user_id: number;
+  name?: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  is_enabled?: boolean;
+  is_admin?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -26,6 +36,7 @@ export class ProjectService {
     return new HttpHeaders({ 'Content-Type': 'application/json' });
   }
 
+  // === PROYECTOS ===
   getAllProjects(): Observable<ApiResponse<Project[]>> {
     return this.http.get<ApiResponse<Project[]>>(
       `${this.apiUrl}/project`,
@@ -41,57 +52,52 @@ export class ProjectService {
     );
   }
 
-  assignUserToProject(project_id: number, assigned_user_id: number, role: string = 'MEMBER'): Observable<ApiResponse> {
-    return this.http.post<ApiResponse>(
+  updateProject(payload: {
+    project_id: number;
+    title?: string;
+    start_date?: string;
+    end_date?: string;
+    visibility?: string; // usamos ARCHIVED para “eliminar”
+  }) {
+    return this.http.patch(
+      `${this.apiUrl}/project`,
+      payload,
+      { headers: this.jsonHeaders(), withCredentials: true }
+    );
+  }
+
+  assignUserToProject(project_id: number, assigned_user_id: number, role: string = 'MEMBER') {
+    return this.http.post(
       `${this.apiUrl}/project/assign`,
       { project_id, assigned_user_id, role },
       { headers: this.jsonHeaders(), withCredentials: true }
     );
   }
 
-  uploadProjectFiles(project_id: number, files: FileList): Observable<any> {
+  uploadProjectFiles(project_id: number, files: FileList) {
     const form = new FormData();
     form.append('project_id', String(project_id));
     for (let i = 0; i < files.length; i++) form.append('files', files[i]);
     return this.http.post(`${this.apiUrl}/file/to_project`, form, { withCredentials: true });
   }
 
-  getAllUsers(): Observable<ApiResponse<any[]>> {
-    return this.http.get<ApiResponse<any[]>>(
-      `${this.apiUrl}/user`,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
-    
-  }
-  updateProject(payload: {
-  project_id: number;
-  title?: string;
-  start_date?: string;
-  end_date?: string;
-  visibility?: string; // opcional, tu SP lo acepta
-    }) {
-  return this.http.patch(
-    `${this.apiUrl}/project`,
-    payload,
-    { headers: this.jsonHeaders(), withCredentials: true }
-  );
-}
-getProjectDetails(project_id: number) {
+  getProjectDetails(project_id: number) {
     return this.http.get(
       `${this.apiUrl}/project/${project_id}`,
       { headers: this.jsonHeaders(), withCredentials: true }
     );
   }
 
-  getProjectTasks(project_id: number) {
-    return this.http.get(
-      `${this.apiUrl}/project/${project_id}/tasks`,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
-  }
-
-  // URL directa para descargar archivo del backend
   buildFileDownloadUrl(file_id: number) {
     return `${this.apiUrl}/file/${file_id}`;
+  }
+
+  // === USUARIOS ===
+  getAllUsers(): Observable<ApiResponse<User[]>> {
+    // Backend: GET /user -> SELECT id_user as user_id, name, email, phone_number, account_status = "ENABLED" as is_enabled, is_admin
+    return this.http.get<ApiResponse<User[]>>(
+      `${this.apiUrl}/user`,
+      { headers: this.jsonHeaders(), withCredentials: true }
+    );
   }
 }
