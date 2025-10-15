@@ -28,13 +28,30 @@ export class TaskService {
     });
   }
 
+  // Obtener todas las tareas de un proyecto en especifico
+  getAllProjectTasks(project_id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/project/${project_id}/tasks`, { 
+      headers: this.getHeaders(),
+      withCredentials: true 
+    });
+  }
+
+  // Obtener las tareas del usuario de un proyecto en especifico
+  getProjectUserTasks(project_id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/project/${project_id}/tasks/mine`, { 
+      headers: this.getHeaders(),
+      withCredentials: true 
+    });
+  }
+
+
   // Crear nueva tarea (adaptado al backend existente)
   createTask(tarea: Partial<Tarea>): Observable<any> {
     const taskData = {
       title: tarea.titulo,
       description: tarea.descripcion,
       start_date: tarea.fechaInicio,
-      due_date: tarea.fechaFin,
+      end_date: tarea.fechaFin,
       assigned_user: tarea.usuario,
       project_id: 1 // Proyecto por defecto
     };

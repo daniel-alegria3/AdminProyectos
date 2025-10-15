@@ -1,4 +1,5 @@
 import { Component, ViewEncapsulation, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TaskListComponent } from './task-list.component';
@@ -13,8 +14,16 @@ import { TaskFormComponent } from './task-form.component';
 })
 
 export class Task {
-  protected readonly title = signal('AdminProyectos');
+  projectId: string | null = null;
   mostrarFormulario = false;
+
+  constructor(private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      this.projectId = params['project_id'] || null;
+    });
+  }
 
   abrirFormulario() {
     this.mostrarFormulario = true;

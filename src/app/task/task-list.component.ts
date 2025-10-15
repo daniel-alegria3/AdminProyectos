@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Tarea } from './models';
 import { TaskService } from './task.service';
@@ -98,6 +98,7 @@ import { TaskService } from './task.service';
 })
 
 export class TaskListComponent implements OnInit {
+  @Input() projectId: string | null = null;
   @Output() abrirFormulario = new EventEmitter<void>();
 
   tareas: Tarea[] = [];
@@ -108,9 +109,12 @@ export class TaskListComponent implements OnInit {
 
   constructor(private taskService: TaskService) {
     // Recargar tareas cada 30 segundos para sincronizar con backend
+
+    /* NOTA de daniel: esto se ejecuta incluso cuando no se esta en la pagina de tareas, dejar el tema de syncronizacion para mas tarde.
     setInterval(() => {
       this.cargarTareas();
     }, 30000);
+    */
   }
 
   get usuariosUnicos(): string[] {
@@ -126,6 +130,7 @@ export class TaskListComponent implements OnInit {
 
   ngOnInit() {
     this.cargarTareas();
+    this.tareasFiltradas; // Al cargar la pagina, mostrar las tareas cargadas
   }
 
   cargarTareas() {
@@ -133,11 +138,21 @@ export class TaskListComponent implements OnInit {
     this.tareas = []; // Limpiar tareas existentes
 
     // Cargar SOLO desde el backend
-    this.taskService.getUserTasks().subscribe({
+    let getTasks;
+    if (this.projectId !== null) {
+      getTasks = this.taskService.getAllProjectTasks(Number(this.projectId));
+    } else {
+      getTasks = this.taskService.getUserTasks();
+    }
+
+    getTasks.subscribe({
       next: (response) => {
         this.loading = false;
         console.log('Respuesta del backend:', response);
         
+        // TODO: mapear adecuandamente algunos atributos:
+        //         - no existe 'task.assigend_user_name' ni 'task.files'
+        //         - todavia no hay 'task.members', solo hay 'task.member_count' por el momento
         if (response?.success && response?.data) {
           // Mapear los datos del backend al formato del frontend
           this.tareas = response.data.map((task: any) => ({
@@ -145,9 +160,9 @@ export class TaskListComponent implements OnInit {
             titulo: task.title || task.titulo || 'Sin título',
             descripcion: task.description || task.descripcion || 'Sin descripción',
             fechaInicio: task.start_date || task.fechaInicio || '',
-            fechaFin: task.due_date || task.fechaFin || '',
+            fechaFin: task.end_date || task.fechaFin || '',
             usuario: task.assigned_user_name || task.assigned_user || task.usuario || 'Sin asignar',
-            proyecto: task.project_name || task.proyecto || 'Proyecto General',
+            proyecto: task.project_title || task.proyecto || 'Proyecto General',
             archivos: task.files || task.archivos || [],
             estado: task.progress_status || task.estado || 'Pendiente'
           }));

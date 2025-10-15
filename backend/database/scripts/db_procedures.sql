@@ -639,16 +639,10 @@ BEGIN
     COUNT(DISTINCT tf.id_file) AS file_count
     FROM Task t
     LEFT JOIN TaskAssignment ta ON t.id_task = ta.id_task
+      AND (p_filter_user_id IS NULL OR ta.id_user = p_filter_user_id)
     LEFT JOIN `User` u ON ta.id_user = u.id_user
     LEFT JOIN TaskFile tf ON t.id_task = tf.id_task
     WHERE t.id_project = p_project_id
-    AND (p_filter_user_id IS NULL
-      OR EXISTS (
-        SELECT 1
-        FROM TaskAssignment ta_exists
-        WHERE ta_exists.id_task = t.id_task
-        AND ta_exists.id_user = p_filter_user_id
-    ))
     GROUP BY t.id_task
     ORDER BY t.progress_status, t.start_date, t.title;
 END; //

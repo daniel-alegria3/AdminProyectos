@@ -8,8 +8,16 @@
   </div>
 
   <!-- Lista de tareas -->
-  <task-list (abrirFormulario)="abrirFormulario()"></task-list>
+  <task-list
+    [projectId]="projectId"
+    (abrirFormulario)="abrirFormulario()">
+  </task-list>
 
   <!-- Formulario modal -->
-  <task-form *ngIf="mostrarFormulario" (cerrarFormulario)="cerrarFormulario()" (tareaCreada)="onTareaCreada()"></task-form>
+  <task-form
+    *ngIf="mostrarFormulario"
+    [projectId]="projectId"
+    (cerrarFormulario)="cerrarFormulario()"
+    (tareaCreada)="onTareaCreada()">
+  </task-form>
 </div>
