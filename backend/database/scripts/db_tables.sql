@@ -14,6 +14,7 @@ CREATE TABLE `Project` (
   id_project int PRIMARY KEY AUTO_INCREMENT,
   title varchar(256) NOT NULL,
   visibility enum('PUBLIC', 'PRIVATE') DEFAULT 'PUBLIC' NOT NULL,
+  description varchar(1024),
   start_date datetime,
   end_date datetime
 );

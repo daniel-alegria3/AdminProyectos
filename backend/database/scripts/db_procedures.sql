@@ -236,6 +236,8 @@ END; //
 CREATE PROCEDURE CreateProject(
   in p_user_id int,
   in p_title varchar(256),
+  in p_visibility varchar(16),
+  in p_description varchar(1024),
   in p_start_date datetime,
   in p_end_date datetime
 )
@@ -243,8 +245,8 @@ BEGIN
   DECLARE v_project_id int;
 
   -- Create project
-  INSERT INTO Project (title, start_date, end_date)
-    VALUES (p_title, p_start_date, p_end_date);
+  INSERT INTO Project (title, visibility, description, start_date, end_date)
+    VALUES (p_title, p_visibility, p_description, p_start_date, p_end_date);
 
   SET v_project_id = LAST_INSERT_ID();
 
@@ -262,6 +264,7 @@ CREATE PROCEDURE UpdateProject(
     IN p_user_id INT,
     IN p_title VARCHAR(256),
     IN p_visibility VARCHAR(16),
+    IN p_description VARCHAR(1024),
     IN p_start_date DATETIME,
     IN p_end_date DATETIME
 )
@@ -285,6 +288,7 @@ BEGIN
   UPDATE Project SET
     title      = COALESCE(p_title, title),
     visibility = COALESCE(p_visibility, visibility),
+    description = COALESCE(p_description, description),
     start_date = COALESCE(p_start_date, start_date),
     end_date   = COALESCE(p_end_date, end_date)
   WHERE id_project = p_project_id;
@@ -418,6 +422,7 @@ BEGIN
     p.id_project,
     p.title,
     p.visibility,
+    p.description,
     p.start_date,
     p.end_date,
     v_members AS members,

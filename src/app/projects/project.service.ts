@@ -44,7 +44,7 @@ export class ProjectService {
     );
   }
 
-  createProject(payload: { title: string; start_date?: string; end_date?: string }): Observable<ApiResponse<any>> {
+  createProject(payload: { title: string; visibility: string, description?: string, start_date?: string; end_date?: string }): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(
       `${this.apiUrl}/project`,
       payload,
@@ -55,6 +55,7 @@ export class ProjectService {
   updateProject(payload: {
     project_id: number;
     title?: string;
+    description?: string;
     start_date?: string;
     end_date?: string;
     visibility?: string; // usamos ARCHIVED para “eliminar”

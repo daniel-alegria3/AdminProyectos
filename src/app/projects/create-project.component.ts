@@ -28,8 +28,7 @@ import { UserLite } from './model';
         <div>
           <label class="block text-sm font-medium mb-1">Descripción</label>
           <textarea class="w-full rounded-lg border px-3 py-2" rows="3" [(ngModel)]="description" name="description"
-                    placeholder="Resumen del proyecto (solo UI; backend aún no lo guarda)"></textarea>
-          <p class="text-xs text-amber-600 mt-1">Nota: el backend /project no recibe descripción; la guardaremos en memoria UI por ahora.</p>
+                    placeholder="Resumen del proyecto"></textarea>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -161,6 +160,8 @@ export class CreateProjectComponent {
 
     this.projectSvc.createProject({
       title: this.title.trim(),
+      visibility: 'PUBLIC',
+      description: this.description,
       start_date: this.start_date || undefined,
       end_date: this.end_date || undefined
     }).subscribe({

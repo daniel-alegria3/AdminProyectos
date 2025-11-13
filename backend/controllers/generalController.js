@@ -290,16 +290,18 @@ const userController = {
 
   createProject: async (req, res) => {
     try {
-      const { title, start_date, end_date } = req.body;
+      const { title, visibility, description, start_date, end_date } = req.body;
       const creator_user_id = req.session.user_id;
 
       if (!title) {
         return res.status(400).json({ success: false, error: 'title not defined' });
       }
 
-      const [rows] = await db.execute('CALL CreateProject(?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL CreateProject(?, ?, ?, ?, ?, ?)', [
         creator_user_id,
         title,
+        visibility || 'PUBLIC',
+        description || null,
         start_date || null,
         end_date || null,
       ]);
@@ -317,14 +319,15 @@ const userController = {
   updateProject: async (req, res) => {
     try {
       console.error("no way");
-      const { project_id, title, visibility, start_date, end_date } = req.body;
+      const { project_id, title, visibility, description, start_date, end_date } = req.body;
       const creator_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?, ?)', [
         parseInt(project_id),
         parseInt(creator_user_id),
         title || null,
         visibility || null,
+        description || null,
         start_date || null,
         end_date || null,
       ]);

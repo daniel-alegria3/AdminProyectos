@@ -35,9 +35,9 @@ SELECT id_user, name, email, account_status, is_admin FROM User ORDER BY id_user
 --------------------------------------------------------------------------------
 
 -- Test CreateProject procedure
-CALL CreateProject(1, 'Website Redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00'); -- Alice as creator
-CALL CreateProject(2, 'Mobile App Development', '2024-02-01 08:00:00', '2024-06-30 18:00:00'); -- Bob as creator
-CALL CreateProject(1, 'Database Migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00'); -- Alice as creator
+CALL CreateProject(1, 'Website Redesign', 'PUBLIC', 'Algo sobre website redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00'); -- Alice as creator
+CALL CreateProject(2, 'Mobile App Development', 'PUBLIC', 'Algo sobre mobile app dev', '2024-02-01 08:00:00', '2024-06-30 18:00:00'); -- Bob as creator
+CALL CreateProject(1, 'Database Migration', 'PUBLIC', 'Algo sobre database migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00'); -- Alice as creator
 
 -- Test AssignUserToProject procedure
 CALL AssignUserToProject(1, 1, 3, "OWNER"); -- Assign Carol to Website Redesign
@@ -283,7 +283,7 @@ CALL GetProjectFilenames(NULL);
 --------------------------------------------------------------------------------
 
 -- Add some projects with different visibility settings to test GetAllProjects
-CALL CreateProject(1, 'Internal Security Audit', '2024-05-01 09:00:00', '2024-07-31 17:00:00');
+CALL CreateProject(1, 'Internal Security Audit', 'PUBLIC', 'Algo sobre internal sec audit', '2024-05-01 09:00:00', '2024-07-31 17:00:00');
 SET @private_project = LAST_INSERT_ID();
 
 -- Update project visibility (you'll need an UpdateProjectVisibility procedure or manual UPDATE)
