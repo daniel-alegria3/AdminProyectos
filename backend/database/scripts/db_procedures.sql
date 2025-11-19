@@ -35,11 +35,11 @@ END; //
 
 CREATE PROCEDURE UpdateUser(
     IN p_user_id INT,
-    IN p_requesting_user_id INT,
     IN p_name VARCHAR(128),
     IN p_email VARCHAR(128),
     IN p_phone_number VARCHAR(64),
-    IN p_account_status VARCHAR(16)
+    IN p_account_status VARCHAR(16),
+    IN p_requesting_user_id INT
 )
 BEGIN
   -- TODO: I won't audit this gpt code (but it looks good). I'm tired boss
@@ -206,6 +206,7 @@ END; //
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE UpdateUserStatus(
+  -- Admin only
   in p_user_id int,
   in p_account_status varchar(16)
 )
@@ -234,12 +235,12 @@ END; //
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE CreateProject(
-  in p_user_id int,
   in p_title varchar(256),
   in p_visibility varchar(16),
   in p_description varchar(1024),
   in p_start_date datetime,
-  in p_end_date datetime
+  in p_end_date datetime,
+  in p_creator_user_id int
 )
 BEGIN
   DECLARE v_project_id int;
@@ -252,7 +253,7 @@ BEGIN
 
   -- Assign creator to project
   INSERT INTO ProjectAssignment (id_project, id_user, role)
-    VALUES (v_project_id, p_user_id, "OWNER");
+    VALUES (v_project_id, p_creator_user_id, "OWNER");
 
   SELECT v_project_id as project_id;
 END; //
@@ -261,12 +262,12 @@ END; //
 
 CREATE PROCEDURE UpdateProject(
     IN p_project_id INT,
-    IN p_user_id INT,
     IN p_title VARCHAR(256),
     IN p_visibility VARCHAR(16),
     IN p_description VARCHAR(1024),
     IN p_start_date DATETIME,
-    IN p_end_date DATETIME
+    IN p_end_date DATETIME,
+    IN p_requesting_user_id INT
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
@@ -276,7 +277,7 @@ BEGIN
     INTO v_role
     FROM ProjectAssignment
     WHERE id_project = p_project_id
-    AND id_user = p_user_id
+    AND id_user = p_requesting_user_id
     LIMIT 1;
 
   IF v_role IS NULL OR v_role <> 'OWNER' THEN
@@ -304,8 +305,8 @@ END; //
 CREATE PROCEDURE AssignUserToProject(
   in p_project_id int,
   in p_user_id int,
-  in p_assigned_user_id int,
-  in p_role varchar(16)
+  in p_role varchar(16),
+  in p_requesting_user_id int
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
@@ -315,7 +316,7 @@ BEGIN
   BEGIN
     IF p_role IS NOT NULL THEN
       UPDATE ProjectAssignment SET role = p_role
-        WHERE id_project = p_project_id AND id_user = p_assigned_user_id;
+        WHERE id_project = p_project_id AND id_user = p_user_id;
     ELSE
       SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'No update performed: role not provided';
@@ -341,7 +342,7 @@ BEGIN
     INTO v_role
     FROM ProjectAssignment
     WHERE id_project = p_project_id
-    AND id_user = p_user_id
+    AND id_user = p_requesting_user_id
     LIMIT 1;
 
   IF v_role IS NULL OR v_role <> 'OWNER' THEN
@@ -351,10 +352,10 @@ BEGIN
 
   IF p_role IS NOT NULL THEN
     INSERT INTO ProjectAssignment (id_project, id_user, role)
-      VALUES (p_project_id, p_assigned_user_id, p_role);
+      VALUES (p_project_id, p_user_id, p_role);
   ELSE
     INSERT INTO ProjectAssignment (id_project, id_user)
-      VALUES (p_project_id, p_assigned_user_id);
+      VALUES (p_project_id, p_user_id);
   END IF;
 END; //
 
@@ -388,13 +389,26 @@ END; //
 --------------------------------------------------------------------------------
 
 CREATE PROCEDURE GetProjectDetails(
-  in p_project_id int
+  in p_project_id int,
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get project details?
-
   DECLARE v_members JSON;
   DECLARE v_files   JSON;
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner or member
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners can update project details';
+  END IF;
 
   -- Members (guaranteed at least 1)
   SELECT
@@ -441,13 +455,26 @@ CREATE PROCEDURE CreateTask(
   in p_description varchar(256),
   in p_start_date datetime,
   in p_end_date datetime,
-  in p_assigned_user_id int,
-  in p_assigned_role varchar(16)
+  in p_user_id int,
+  in p_role varchar(16),
+  in p_creator_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' create task?
-
   DECLARE v_task_id int;
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner or member
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_creator_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners|members can update project details';
+  END IF;
 
   -- Create task
   INSERT INTO Task (id_project, title, description, start_date, end_date)
@@ -456,18 +483,18 @@ BEGIN
   SET v_task_id = LAST_INSERT_ID();
 
   -- Assign user to task if provided
-  IF p_assigned_user_id IS NOT NULL THEN
+  IF p_user_id IS NOT NULL THEN
     -- Check if user is assigned to the project
-    IF NOT EXISTS (SELECT 1 FROM ProjectAssignment WHERE id_project = p_project_id AND id_user = p_assigned_user_id) THEN
+    IF NOT EXISTS (SELECT 1 FROM ProjectAssignment WHERE id_project = p_project_id AND id_user = p_user_id) THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User must be assigned to project first';
     END IF;
 
-    IF p_assigned_role IS NOT NULL THEN
+    IF p_role IS NOT NULL THEN
       INSERT INTO TaskAssignment (id_task, id_user, role)
-        VALUES (v_task_id, p_assigned_user_id, p_assigned_role);
+        VALUES (v_task_id, p_user_id, p_role);
     ELSE
       INSERT INTO TaskAssignment (id_task, id_user)
-        VALUES (v_task_id, p_assigned_user_id);
+        VALUES (v_task_id, p_user_id);
     END IF;
   END IF;
 
@@ -479,13 +506,26 @@ END; //
 DELIMITER //
 
 CREATE PROCEDURE GetTaskDetails (
-  in p_task_id int
+  in p_task_id int,
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get task details?
-
   DECLARE v_members JSON;
   DECLARE v_files   JSON;
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the task owner or member
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners|members can get the details';
+  END IF;
 
   -- Members (could be 0)
   SELECT
@@ -527,8 +567,8 @@ END; //
 CREATE PROCEDURE AssignUserToTask(
   in p_task_id int,
   in p_user_id int,
-  in p_assigned_user_id int,
-  in p_role varchar(16)
+  in p_role varchar(16),
+  in p_requesting_user_id int
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
@@ -538,7 +578,7 @@ BEGIN
   BEGIN
     IF p_role IS NOT NULL THEN
       UPDATE TaskAssignment SET role = p_role
-        WHERE id_task = p_task_id AND id_user = p_assigned_user_id;
+        WHERE id_task = p_task_id AND id_user = p_user_id;
     ELSE
       SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'No update performed: role not provided';
@@ -565,7 +605,7 @@ BEGIN
     INTO v_role
     FROM TaskAssignment
     WHERE id_task = p_task_id
-    AND id_user = p_user_id
+    AND id_user = p_requesting_user_id
     LIMIT 1;
 
   IF v_role IS NULL OR v_role <> 'OWNER' THEN
@@ -576,10 +616,10 @@ BEGIN
   -- Attempt to insert new assignment
   IF p_role IS NOT NULL THEN
     INSERT INTO TaskAssignment (id_task, id_user, role)
-      VALUES (p_task_id, p_assigned_user_id, p_role);
+      VALUES (p_task_id, p_user_id, p_role);
   ELSE
     INSERT INTO TaskAssignment (id_task, id_user)
-      VALUES (p_task_id, p_assigned_user_id);
+      VALUES (p_task_id, p_user_id);
   END IF;
 END; //
 
@@ -587,10 +627,11 @@ END; //
 
 CREATE PROCEDURE UpdateTaskStatus(
   in p_task_id int,
-  in p_progress_status varchar(16)
+  in p_progress_status varchar(16),
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER' can change `progress_status`?
+  DECLARE v_role VARCHAR(16);
 
   -- Intercept invalid ENUM value
   DECLARE EXIT HANDLER FOR 1265  -- ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
@@ -598,6 +639,19 @@ BEGIN
     SIGNAL SQLSTATE '45000'
       SET MESSAGE_TEXT = 'Invalid progress_status: must be one of the ENUM values defined in Task.progress_status';
   END;
+
+  -- Check if the user is the task owner or member
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners|members can chage task progress status';
+  END IF;
 
   UPDATE Task
     SET progress_status = p_progress_status
@@ -611,12 +665,12 @@ CREATE PROCEDURE GetTasksByUser (
   in p_filter_project_id int -- NULL to see all tasks for user
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
   SELECT
     t.*,
     COUNT(DISTINCT u.id_user) AS member_count,
     COUNT(DISTINCT tf.id_file) AS file_count,
-    p.title AS project_title
+    p.title AS project_title,
+    p.id_project AS project_id
     FROM Task t
     INNER JOIN TaskAssignment ta_self
       ON t.id_task = ta_self.id_task
@@ -634,10 +688,25 @@ END; //
 
 CREATE PROCEDURE GetTasksByProject (
   in p_project_id int,
-  in p_filter_user_id int -- NULL to see all tasks for project
+  in p_filter_user_id int, -- NULL to see all tasks for project
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' get tasks?
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner or member
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners|members can get project tasks';
+  END IF;
+
   SELECT
     t.*,
     COUNT(DISTINCT u.id_user) AS member_count,
@@ -690,10 +759,24 @@ END; //
 
 CREATE PROCEDURE AttachFileToProject(
   in p_project_id int,
-  in p_file_id int
+  in p_file_id int,
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' can attach file?
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner or member
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project owners|members can attach files';
+  END IF;
 
   INSERT INTO ProjectFile (id_project, id_file)
     VALUES (p_project_id, p_file_id);
@@ -703,10 +786,24 @@ END; //
 
 CREATE PROCEDURE AttachFileToTask(
   in p_task_id int,
-  in p_file_id int
+  in p_file_id int,
+  in p_requesting_user_id int
 )
 BEGIN
-  -- TODO: have rule so only 'OWNER'|'MEMBER' can attach file?
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the task owner or member
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners|members can attach files';
+  END IF;
 
   INSERT INTO TaskFile (id_task, id_file)
     VALUES (p_task_id, p_file_id);

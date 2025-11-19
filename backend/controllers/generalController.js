@@ -56,7 +56,7 @@ const createUploadHandler = (attachFunction, entityIdField, entityName) => {
             const file_id = rows[0][0].file_id;
 
             // Attach file using the provided attach function
-            [rows] = await attachFunction(entityId, file_id);
+            [rows] = await attachFunction(entityId, file_id, req.session.user_id);
 
             uploadedFiles.push({
               file_id,
@@ -112,7 +112,7 @@ const handleError = (res, error) => {
   });
 };
 
-const userController = {
+const generalController = {
   createUser: async (req, res) => {
     try {
       const { name, email, password, phone_number, is_admin } = req.body;
@@ -131,7 +131,7 @@ const userController = {
         password,
         phone_number || null,
         is_admin || false,
-        parseInt(requesting_user_id),
+        requesting_user_id,
       ]);
 
       res.status(201).json({
@@ -151,11 +151,11 @@ const userController = {
 
       const [rows] = await db.execute('CALL UpdateUser(?, ?, ?, ?, ?, ?)', [
         parseInt(user_id),
-        parseInt(requesting_user_id),
         name || null,
         email || null,
         phone_number || null,
         account_status || null,
+        requesting_user_id,
       ]);
 
       res.json({
@@ -178,7 +178,7 @@ const userController = {
       }
 
       // Prevent self-deletion
-      if (parseInt(user_id) === parseInt(requesting_user_id)) {
+      if (parseInt(user_id) === requesting_user_id) {
         return res
           .status(400)
           .json({ success: false, message: 'No puedes eliminar tu propia cuenta' });
@@ -187,7 +187,7 @@ const userController = {
       // Call stored procedure to delete user
       const [rows] = await db.execute('CALL DeleteUser(?, ?)', [
         parseInt(user_id),
-        parseInt(requesting_user_id),
+        requesting_user_id,
       ]);
 
       res.json({
@@ -267,19 +267,19 @@ const userController = {
       // For self-update, user_id and requesting_user_id are the same
       // Also, don't allow account_status changes in self-update
       const [rows] = await db.execute('CALL UpdateUser(?, ?, ?, ?, ?, ?)', [
-        parseInt(requesting_user_id),
-        parseInt(requesting_user_id),
+        requesting_user_id,
         name || null,
         email || null,
         phone_number || null,
         null, // Don't allow self account_status changes
+        requesting_user_id,
       ]);
 
       res.json({
         success: true,
         message: 'Detalles del usuario actualizados exitosamente',
         data: {
-          user_id: parseInt(requesting_user_id),
+          user_id: requesting_user_id,
           data: rows[0][0],
         },
       });
@@ -298,12 +298,12 @@ const userController = {
       }
 
       const [rows] = await db.execute('CALL CreateProject(?, ?, ?, ?, ?, ?)', [
-        creator_user_id,
         title,
         visibility || 'PUBLIC',
         description || null,
         start_date || null,
         end_date || null,
+        creator_user_id,
       ]);
 
       res.json({
@@ -320,16 +320,16 @@ const userController = {
     try {
       console.error("no way");
       const { project_id, title, visibility, description, start_date, end_date } = req.body;
-      const creator_user_id = req.session.user_id;
+      const requesting_user_id = req.session.user_id;
 
       const [rows] = await db.execute('CALL UpdateProject(?, ?, ?, ?, ?, ?, ?)', [
         parseInt(project_id),
-        parseInt(creator_user_id),
         title || null,
         visibility || null,
         description || null,
         start_date || null,
         end_date || null,
+        requesting_user_id,
       ]);
 
       res.json({
@@ -344,18 +344,18 @@ const userController = {
   assignUserToProject: async (req, res) => {
     // Can also update existing user if role provided
     try {
-      const { project_id, assigned_user_id, role } = req.body;
-      const creator_user_id = req.session.user_id;
+      const { project_id, user_id, role } = req.body;
+      const requesting_user_id = req.session.user_id;
 
-      if (!project_id || !assigned_user_id) {
+      if (!project_id || !user_id) {
         return res.status(400).json({ success: false, error: 'missing parameters' });
       }
 
       const [rows] = await db.execute('CALL AssignUserToProject(?, ?, ?, ?)', [
         project_id,
-        creator_user_id,
-        assigned_user_id,
+        user_id,
         role || 'MEMBER',
+        requesting_user_id,
       ]);
 
       res.json({
@@ -398,8 +398,9 @@ const userController = {
       // Returns members, files
 
       const { project_id } = req.params;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetProjectDetails(?)`, [project_id]);
+      const [rows] = await db.execute(`CALL GetProjectDetails(?, ?)`, [project_id, requesting_user_id]);
 
       res.json({
         success: true,
@@ -416,11 +417,12 @@ const userController = {
     try {
       const { project_id } = req.params;
       const { filter_user_id } = req.query;
-      const creator_user_id = req.session.user_id;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [
         project_id,
         filter_user_id || null,
+        requesting_user_id,
       ]);
       res.json({
         success: true,
@@ -435,7 +437,7 @@ const userController = {
   getMyProjectTasks: async (req, res) => {
     try {
       const { project_id } = req.params;
-      const creator_user_id = req.session.user_id;
+      const requesting_user_id = req.session.user_id;
       const filter_user_id = req.session.user_id;
 
       const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [project_id, filter_user_id]);
@@ -457,8 +459,8 @@ const userController = {
         description,
         start_date,
         end_date,
-        assigned_user_id,
-        assigned_role,
+        user_id,
+        role,
       } = req.body;
 
       const creator_user_id = req.session.user_id;
@@ -467,14 +469,15 @@ const userController = {
         return res.status(400).json({ success: false, error: 'missing parameters' });
       }
 
-      const [rows] = await db.execute('CALL CreateTask(?, ?, ?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL CreateTask(?, ?, ?, ?, ?, ?, ?, ?)', [
         project_id,
         title,
         description || null,
         start_date || null,
         end_date || null,
-        assigned_user_id || null,
-        assigned_role || null,
+        user_id || null,
+        role || null,
+        creator_user_id,
       ]);
 
       res.json({
@@ -489,9 +492,9 @@ const userController = {
 
   getUserTasks: async (req, res) => {
     try {
-      const creator_user_id = req.session.user_id;
+      const user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [creator_user_id, null]);
+      const [rows] = await db.execute('CALL GetTasksByUser(?, ?)', [user_id, null]);
       res.json({
         success: true,
         message: 'Tareas del usuario recuperados exitosamente',
@@ -506,8 +509,9 @@ const userController = {
     try {
       // Returns members, files
       const { task_id } = req.params;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetTaskDetails(?)`, [task_id]);
+      const [rows] = await db.execute(`CALL GetTaskDetails(?, ?)`, [task_id, requesting_user_id]);
 
       res.json({
         success: true,
@@ -526,9 +530,9 @@ const userController = {
       if (!progress_status) {
         return res.status(400).json({ success: false, error: 'missing paramemeters' });
       }
-      const creator_user_id = req.session.user_id;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL UpdateTaskStatus(?, ?)', [task_id, progress_status]);
+      const [rows] = await db.execute('CALL UpdateTaskStatus(?, ?, ?)', [task_id, progress_status, requesting_user_id]);
 
       res.json({
         success: true,
@@ -541,7 +545,7 @@ const userController = {
 
   assignUserToTask: async (req, res) => {
     try {
-      const { task_id, assigned_user_id, role } = req.body;
+      const { task_id, user_id, role } = req.body;
 
       if (!user_id) {
         return res.status(400).json({ error: 'User ID is required' });
@@ -550,9 +554,9 @@ const userController = {
 
       const [rows] = await db.execute('CALL AssignUserToTask(?, ?, ?, ?)', [
         task_id,
-        requesting_user_id,
-        assigned_user_id,
+        user_id,
         role || 'MEMBER',
+        requesting_user_id,
       ]);
 
       res.json({
@@ -589,88 +593,17 @@ const userController = {
     }
   },
 
-  uploadFile: [
-    upload.array('files'),
-    async (req, res) => {
-      try {
-        // Check if any files were uploaded
-        if (!req.files || req.files.length === 0) {
-          return res.status(400).json({ error: 'No se pasaron archivos' });
-        }
-
-        const { project_id } = req.body;
-        if (!project_id) {
-          return res.status(400).json({ error: 'Project ID is required' });
-        }
-
-        const uploadedFiles = [];
-        const errors = [];
-
-        // Process each file
-        for (const file of req.files) {
-          try {
-            const { originalname, buffer } = file;
-            const size = Buffer.byteLength(buffer);
-
-            // Extract name + extension
-            const parts = originalname.split('.');
-            const extension = parts.length > 1 ? parts.pop() : '';
-            const name = parts.join('.') || originalname;
-
-            // Upload file to database
-            let rows;
-            [rows] = await db.query('CALL UploadFile(?, ?, ?, ?)', [name, extension, buffer, size]);
-            const file_id = rows[0][0].file_id;
-
-            // Attach file to project
-            [rows] = await db.execute('CALL AttachFileToProject(?, ?)', [project_id, file_id]);
-
-            uploadedFiles.push({
-              file_id,
-              filename: originalname,
-              size,
-            });
-          } catch (fileError) {
-            errors.push({
-              filename: file.originalname,
-              error: fileError.message,
-            });
-          }
-        }
-
-        // Prepare response
-        const response = {
-          success: uploadedFiles.length > 0,
-          message: `${uploadedFiles.length} archivo(s) subido(s) exitosamente`,
-          uploadedFiles,
-          totalUploaded: uploadedFiles.length,
-          totalFiles: req.files.length,
-        };
-
-        // Include errors if any occurred
-        if (errors.length > 0) {
-          response.errors = errors;
-          response.message += `, ${errors.length} archivo(s) fallaron`;
-        }
-
-        res.json(response);
-      } catch (error) {
-        handleError(res, error);
-      }
-    },
-  ],
-
   uploadProjectFile: createUploadHandler(
-    (projectId, fileId) => db.execute('CALL AttachFileToProject(?, ?)', [projectId, fileId]),
+    (projectId, fileId, requesting_user_id) => db.execute('CALL AttachFileToProject(?, ?, ?)', [projectId, fileId, requesting_user_id]),
     'project_id',
     'Project',
   ),
 
   uploadTaskFile: createUploadHandler(
-    (taskId, fileId) => db.execute('CALL AttachFileToTask(?, ?)', [taskId, fileId]),
+    (taskId, fileId, requesting_user_id) => db.execute('CALL AttachFileToTask(?, ?, ?)', [taskId, fileId, requesting_user_id]),
     'task_id',
     'Task',
   ),
 };
 
-module.exports = userController;
+module.exports = generalController;
