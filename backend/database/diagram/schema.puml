@@ -25,6 +25,7 @@ package "AdminProyectos_BD" {
     --
     title : String
     visibility : { PUBLIC, PRIVATE }
+    description : String
     start_date : DateTime
     end_date : DateTime
   }
