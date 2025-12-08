@@ -36,7 +36,7 @@
 
 .proj-container::before {
   content: "";
-  position: fixed;          /* cubre toda la ventana, no hace scroll */
+  position: absolute;       /* daniel: cambiado de 'fixed' a 'absolute' para que el navbar no sea tapado */
   inset: 0;
   z-index: -1;              /* detrás del contenido, delante del body */
   background:

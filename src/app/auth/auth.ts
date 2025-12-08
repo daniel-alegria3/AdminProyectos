@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -10,19 +10,28 @@ import {
 } from '@angular/forms';
 import { AuthService } from './auth.service';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-auth',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './auth.html',
   styleUrls: ['./auth.css'],
 })
 export class Auth {
-  isLoginMode = true;
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
+  // Signals for reactive state
+  isLoginMode = signal(true);
+  errorMessage = signal('');
+  successMessage = signal('');
+  isLoading = signal(false);
+
   loginForm: FormGroup;
   registerForm: FormGroup;
+
   errorMessage = '';
   successMessage = '';
   isLoading = false;
@@ -31,11 +40,7 @@ export class Auth {
   showConfirmPassword = false;
   showLoginPassword = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router,
-  ) {
+  constructor() {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, this.passwordLengthValidator]],
@@ -110,9 +115,9 @@ export class Auth {
   }
 
   toggleMode() {
-    this.isLoginMode = !this.isLoginMode;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.isLoginMode.set(!this.isLoginMode());
+    this.errorMessage.set('');
+    this.successMessage.set('');
   }
 
   onLogin() {
@@ -121,14 +126,14 @@ export class Auth {
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
     this.authService.login(this.loginForm.value).subscribe({
       next: (response) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (response.success) {
-          this.successMessage = response.message;
+          this.successMessage.set(response.message);
 
           // Service already handles storage and state
           const isAdmin = response.data?.is_admin || false;
@@ -138,16 +143,16 @@ export class Auth {
             if (isAdmin) {
               this.router.navigate(['/admin']);
             } else {
-              this.router.navigate(['/user']);
+              this.router.navigate(['/projects']);
             }
           }, 1000);
         } else {
-          this.errorMessage = response.message;
+          this.errorMessage.set(response.message);
         }
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Login failed. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Login failed. Please try again.');
       },
     });
   }
@@ -158,28 +163,28 @@ export class Auth {
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
     const { confirmPassword, ...registerData } = this.registerForm.value;
 
     this.authService.register(registerData).subscribe({
       next: (response) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (response.success) {
-          this.successMessage = response.message;
+          this.successMessage.set(response.message);
           // Optionally switch to login mode after successful registration
           setTimeout(() => {
-            this.isLoginMode = true;
+            this.isLoginMode.set(true);
             this.registerForm.reset();
           }, 2000);
         } else {
-          this.errorMessage = response.message;
+          this.errorMessage.set(response.message);
         }
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Registration failed. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Registration failed. Please try again.');
       },
     });
   }

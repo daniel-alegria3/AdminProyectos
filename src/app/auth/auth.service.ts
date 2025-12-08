@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { tap, catchError, map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
-import { Auth } from './auth';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 export interface RegisterRequest {
   name: string;
@@ -36,13 +36,19 @@ export interface UserSession {
   providedIn: 'root',
 })
 export class AuthService {
+  private http = inject(HttpClient);
   private apiUrl = 'http://localhost:5000';
 
-  // BehaviorSubject to track authentication state
-  private currentUserSubject = new BehaviorSubject<UserSession | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
+  // Signal-based state management
+  private currentUserSignal = signal<UserSession | null>(null);
 
-  constructor(private http: HttpClient) {
+  // Public computed signals for reactive access
+  currentUser = this.currentUserSignal.asReadonly();
+  isLoggedIn = computed(() => this.currentUserSignal()?.isLoggedIn ?? false);
+  isAdmin = computed(() => this.currentUserSignal()?.is_admin ?? false);
+  userId = computed(() => this.currentUserSignal()?.user_id ?? null);
+
+  constructor() {
     // Check session on service initialization
     this.checkSession().subscribe();
   }
@@ -64,14 +70,14 @@ export class AuthService {
               is_admin: response.data.is_admin || false,
               isLoggedIn: true,
             };
-            this.currentUserSubject.next(userSession);
+            this.currentUserSignal.set(userSession);
           } else {
-            this.currentUserSubject.next(null);
+            this.currentUserSignal.set(null);
           }
         }),
         tap(() => true as boolean),
         catchError(() => {
-          this.currentUserSubject.next(null);
+          this.currentUserSignal.set(null);
           return of(false);
         }),
       );
@@ -94,9 +100,7 @@ export class AuthService {
               is_admin: response.data.is_admin || false,
               isLoggedIn: true,
             };
-
-            // Update the BehaviorSubject
-            this.currentUserSubject.next(userSession);
+            this.currentUserSignal.set(userSession);
           }
         }),
       );
@@ -105,24 +109,12 @@ export class AuthService {
   logout(): Observable<any> {
     return this.http.post(`${this.apiUrl}/user/logout`, {}, { withCredentials: true }).pipe(
       tap(() => {
-        this.currentUserSubject.next(null);
+        this.currentUserSignal.set(null);
       }),
     );
   }
 
-  isLoggedIn(): boolean {
-    return this.currentUserSubject.value?.isLoggedIn || false;
-  }
-
-  isAdmin(): boolean {
-    return this.currentUserSubject.value?.is_admin || false;
-  }
-
-  getUserId(): number | null {
-    return this.currentUserSubject.value?.user_id || null;
-  }
-
   getCurrentUser(): UserSession | null {
-    return this.currentUserSubject.value;
+    return this.currentUserSignal();
   }
 }

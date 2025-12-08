@@ -1,0 +1,9 @@
+@if (showNavbar()) {
+<nav class="navbar">
+  <a routerLink="/projects" routerLinkActive="active">Projects</a>
+
+  <button (click)="logout()" class="logout-btn">
+    Logout
+  </button>
+</nav>
+}
