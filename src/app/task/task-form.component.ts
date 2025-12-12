@@ -36,7 +36,7 @@ import { TaskService } from './task.service';
         <div class="form-group">
           <label>Usuario Asignado:</label>
           <div class="user-selector-container">
-            <input type="text" name="usuario" [(ngModel)]="tarea.usuario" [value]="usuarioActual" readonly placeholder="Seleccione un usuario">
+            <input type="text" name="usuario" [(ngModel)]="usuarioActual" readonly placeholder="Seleccione un usuario">
             <button type="button" class="user-selector-btn" (click)="mostrarSelectorUsuario = !mostrarSelectorUsuario">
               👤 {{ usuarioActual || 'Seleccionar' }}
             </button>
@@ -44,7 +44,7 @@ import { TaskService } from './task.service';
               <div class="user-option"
                    *ngFor="let usuario of usuariosDisponibles"
                    (click)="seleccionarUsuario(usuario)">
-                👤 {{ usuario }}
+                👤 {{ usuario.name }}
               </div>
             </div>
           </div>
@@ -72,14 +72,14 @@ export class TaskFormComponent {
     descripcion: '',
     fechaInicio: '',
     fechaFin: '',
-    usuario: '',
+    usuario: NaN,
     archivos: [],
     proyecto: ''
   };
   mensaje = '';
   mostrarSelectorUsuario = false;
   usuarioActual = '';
-  usuariosDisponibles = ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martín', 'Luis Rodríguez'];
+  usuariosDisponibles: Array<{ id: number; name: string }> = [];
   loading = false;
   selectedFiles: FileList | null = null;
 
@@ -96,7 +96,10 @@ export class TaskFormComponent {
         console.log('👥 Respuesta usuarios backend:', response);
         
         if (response?.success && response?.data) {
-          this.usuariosDisponibles = response.data.map((user: any) => user.name || user.email);
+          this.usuariosDisponibles = response.data.map((user: any) => ({
+            id: user.user_id,
+            name: user.name || user.email
+          }));
           console.log(`✅ ${this.usuariosDisponibles.length} usuarios cargados desde backend:`, this.usuariosDisponibles);
         } else {
           console.log('⚠️ Backend respondió pero sin usuarios');
@@ -121,9 +124,9 @@ export class TaskFormComponent {
     }
   }
 
-  seleccionarUsuario(usuario: string) {
-    this.usuarioActual = usuario;
-    this.tarea.usuario = usuario;
+  seleccionarUsuario(usuario: { id: number; name: string }) {
+    this.usuarioActual = usuario.name;
+    this.tarea.usuario = usuario.id;
     this.mostrarSelectorUsuario = false;
   }
 
@@ -193,7 +196,7 @@ export class TaskFormComponent {
       descripcion: '',
       fechaInicio: '',
       fechaFin: '',
-      usuario: this.usuarioActual,
+      usuario: NaN,
       archivos: [],
       proyecto: 'Proyecto General'
     };

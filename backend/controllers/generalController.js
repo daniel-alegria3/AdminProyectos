@@ -2,6 +2,7 @@ const db = require('../database/db');
 
 const multer = require('multer');
 const path = require('path');
+const mime = require('mime-types');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -208,7 +209,7 @@ const generalController = {
       const { user_id, account_status } = req.body;
 
       if (!user_id || !account_status) {
-        return res.status(400).json({ success: false, error: 'missing paramemeters' });
+        return res.status(400).json({ success: false, error: 'missing parameters' });
       }
 
       const [rows] = await db.execute('CALL UpdateUserStatus(?, ?)', [user_id, account_status]);
@@ -440,7 +441,7 @@ const generalController = {
       const requesting_user_id = req.session.user_id;
       const filter_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [project_id, filter_user_id]);
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [project_id, filter_user_id, requesting_user_id]);
       res.json({
         success: true,
         message: 'Mis tareas de proyecto recuperados exitosamente',
@@ -528,7 +529,7 @@ const generalController = {
       const { task_id, progress_status } = req.body;
 
       if (!progress_status) {
-        return res.status(400).json({ success: false, error: 'missing paramemeters' });
+        return res.status(400).json({ success: false, error: 'missing parameters' });
       }
       const requesting_user_id = req.session.user_id;
 
@@ -572,7 +573,7 @@ const generalController = {
     try {
       const { file_id } = req.params;
 
-      const [rows] = await db.execute('CALL DownloadFile(?)', [id]);
+      const [rows] = await db.execute('CALL DownloadFile(?)', [file_id]);
       const result = rows[0][0];
 
       if (!result) {

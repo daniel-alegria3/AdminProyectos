@@ -111,7 +111,7 @@ export class ProjectListComponent implements OnInit {
 
   refresh() {
     this.loading = true;
-    this.svc.getAllProjects().subscribe({
+    this.svc.getAllMyProjects().subscribe({
       next: (r:any) => {
         this.loading = false;
         if (r?.success && Array.isArray(r.data)) {

@@ -37,9 +37,9 @@ export class ProjectService {
   }
 
   // === PROYECTOS ===
-  getAllProjects(): Observable<ApiResponse<Project[]>> {
+  getAllMyProjects(): Observable<ApiResponse<Project[]>> {
     return this.http.get<ApiResponse<Project[]>>(
-      `${this.apiUrl}/project`,
+      `${this.apiUrl}/project/mine`,
       { headers: this.jsonHeaders(), withCredentials: true }
     );
   }

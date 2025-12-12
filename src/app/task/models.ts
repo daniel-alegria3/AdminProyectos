@@ -4,7 +4,7 @@ export interface Tarea {
   descripcion: string;
   fechaInicio: string;
   fechaFin: string;
-  usuario: string;
+  usuario: number;
   archivos: Archivo[];
   proyecto: string;
   estado?: string;
@@ -15,6 +15,7 @@ export interface Archivo {
   url: string;
 }
 
+/*
 export interface Proyecto {
   nombre: string;
   tareas: Tarea[];
@@ -24,3 +25,4 @@ export interface Usuario {
   nombre: string;
   tareas: Tarea[];
 }
+*/

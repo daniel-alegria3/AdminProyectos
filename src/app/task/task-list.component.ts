@@ -102,7 +102,7 @@ export class TaskListComponent implements OnInit {
   @Output() abrirFormulario = new EventEmitter<void>();
 
   tareas: Tarea[] = [];
-  filtroUsuario = '';
+  filtroUsuario: string | number = '';
   mostrarConfirmacion = false;
   tareaAEliminar: Tarea | null = null;
   loading = false;
@@ -117,7 +117,7 @@ export class TaskListComponent implements OnInit {
     */
   }
 
-  get usuariosUnicos(): string[] {
+  get usuariosUnicos(): (string | number)[] {
     const usuarios = this.tareas.map(t => t.usuario).filter(u => u);
     return [...new Set(usuarios)];
   }
@@ -150,22 +150,19 @@ export class TaskListComponent implements OnInit {
         this.loading = false;
         console.log('Respuesta del backend:', response);
         
-        // TODO: mapear adecuandamente algunos atributos:
-        //         - no existe 'task.assigend_user_name' ni 'task.files'
-        //         - todavia no hay 'task.members', solo hay 'task.member_count' por el momento
+        // Mapear los datos del backend al formato del frontend
         if (response?.success && response?.data) {
-          // Mapear los datos del backend al formato del frontend
-          this.tareas = response.data.map((task: any) => ({
-            id: task.id_task || task.id,
-            titulo: task.title || task.titulo || 'Sin título',
-            descripcion: task.description || task.descripcion || 'Sin descripción',
-            fechaInicio: task.start_date || task.fechaInicio || '',
-            fechaFin: task.end_date || task.fechaFin || '',
-            usuario: task.assigned_user_name || task.assigned_user || task.usuario || 'Sin asignar',
-            proyecto: task.project_title || task.proyecto || 'Proyecto General',
-            archivos: task.files || task.archivos || [],
-            estado: task.progress_status || task.estado || 'Pendiente'
-          }));
+           this.tareas = response.data.map((task: any) => ({
+             id: task.id_task || task.id,
+             titulo: task.title || task.titulo || 'Sin título',
+             descripcion: task.description || task.descripcion || 'Sin descripción',
+             fechaInicio: task.start_date || task.fechaInicio || '',
+             fechaFin: task.end_date || task.fechaFin || '',
+             usuario: task.assigned_user_name || task.assigned_user || 'Sin asignar',
+             proyecto: task.project_title || task.proyecto || 'Proyecto General',
+             archivos: task.files || task.archivos || [],
+             estado: task.progress_status || task.estado || 'Pendiente'
+           }));
           
           console.log(`✅ ${this.tareas.length} tareas cargadas desde el backend`);
         } else {

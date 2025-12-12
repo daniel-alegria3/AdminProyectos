@@ -378,10 +378,11 @@ BEGIN
   LEFT JOIN Task t ON p.id_project = t.id_project
   LEFT JOIN ProjectFile pf ON p.id_project = pf.id_project
   WHERE
-    CASE
-      WHEN p_user_id IS NULL THEN p.visibility = 'PUBLIC' -- TODO: integrate `visibility` check in rest of SP
-      ELSE pa.id_user = p_user_id
-    END
+    (
+      p_user_id IS NULL AND p.visibility = 'PUBLIC'
+    ) OR (
+      p_user_id IS NOT NULL AND ( p.visibility = 'PUBLIC' OR pa.id_user = p_user_id)
+    )
   GROUP BY p.id_project, pa.role
   ORDER BY p.start_date DESC;
 END; //

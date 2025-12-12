@@ -52,7 +52,7 @@ export class TaskService {
       description: tarea.descripcion,
       start_date: tarea.fechaInicio,
       end_date: tarea.fechaFin,
-      assigned_user: tarea.usuario,
+      user_id: tarea.usuario,
       project_id: 1 // Proyecto por defecto
     };
 

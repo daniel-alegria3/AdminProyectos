@@ -46,13 +46,13 @@ SELECT id_user, name, email, account_status, is_admin FROM User ORDER BY id_user
 --------------------------------------------------------------------------------
 
 -- Test CreateProject procedure (parameter order changed: p_creator_user_id moved to end)
-CALL CreateProject('Website Redesign', 'PUBLIC', 'Algo sobre website redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00', @user_alice); -- Alice as creator
+CALL CreateProject('(1) Website Redesign', 'PRIVATE', 'Algo sobre website redesign', '2024-01-15 09:00:00', '2024-04-15 17:00:00', @user_alice); -- Alice as creator
 SET @project_website = LAST_INSERT_ID();
 
-CALL CreateProject('Mobile App Development', 'PUBLIC', 'Algo sobre mobile app dev', '2024-02-01 08:00:00', '2024-06-30 18:00:00', @user_bob); -- Bob as creator
+CALL CreateProject('(2) Mobile App Development', 'PRIVATE', 'Algo sobre mobile app dev', '2024-02-01 08:00:00', '2024-06-30 18:00:00', @user_bob); -- Bob as creator
 SET @project_mobile = LAST_INSERT_ID();
 
-CALL CreateProject('Database Migration', 'PUBLIC', 'Algo sobre database migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00', @user_alice); -- Alice as creator
+CALL CreateProject('(3) Database Migration', 'PRIVATE', 'Algo sobre database migration', '2024-03-01 10:00:00', '2024-05-31 16:00:00', @user_alice); -- Alice as creator
 SET @project_database = LAST_INSERT_ID();
 
 -- Test AssignUserToProject procedure (parameter order changed: p_requesting_user_id moved to end)
@@ -327,11 +327,10 @@ CALL GetProjectFilenames(NULL);
 --------------------------------------------------------------------------------
 
 -- Add some projects with different visibility settings to test GetAllProjects
-CALL CreateProject('Internal Security Audit', 'PUBLIC', 'Algo sobre internal sec audit', '2024-05-01 09:00:00', '2024-07-31 17:00:00', @user_alice); -- Alice creating
+CALL CreateProject('(4) Internal Security Audit', 'PRIVATE', 'Algo sobre internal sec audit', '2024-05-01 09:00:00', '2024-07-31 17:00:00', @user_alice); -- Alice creating
 SET @project_security = LAST_INSERT_ID();
 
 -- Update project visibility (you'll need an UpdateProjectVisibility procedure or manual UPDATE)
--- For now, we'll assume projects are PUBLIC by default as per your schema
 
 -- Create additional project assignments to test role-based access
 CALL AssignUserToProject(@project_security, @user_bob, "OWNER", @user_alice); -- Alice assigning Bob

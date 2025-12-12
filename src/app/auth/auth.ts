@@ -14,7 +14,7 @@ import { Router } from '@angular/router';
 @Component({
   selector: 'app-auth',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './auth.html',
   styleUrls: ['./auth.css'],
 })
@@ -32,9 +32,6 @@ export class Auth {
   loginForm: FormGroup;
   registerForm: FormGroup;
 
-  errorMessage = '';
-  successMessage = '';
-  isLoading = false;
   passwordStrength = '';
   showPassword = false;
   showConfirmPassword = false;
