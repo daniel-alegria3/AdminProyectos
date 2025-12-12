@@ -17,6 +17,20 @@ export class TaskService {
     });
   }
 
+  getProjectDetails(project_id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/project/${project_id}`, {
+      headers: this.getHeaders(),
+      withCredentials: true,
+    });
+  }
+
+  getTaskDetails(task_id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/task/${task_id}`, {
+      headers: this.getHeaders(),
+      withCredentials: true,
+    });
+  }
+
   // Obtener tareas del usuario (adaptado al backend existente)
   getUserTasks(): Observable<any> {
     console.log('🚀 TaskService: Llamando getUserTasks()');

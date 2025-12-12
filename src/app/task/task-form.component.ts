@@ -73,6 +73,7 @@ export class TaskFormComponent {
     fechaInicio: '',
     fechaFin: '',
     usuario: NaN,
+    usuarioNombre: '',
     archivos: [],
     proyecto: ''
   };
@@ -127,6 +128,7 @@ export class TaskFormComponent {
   seleccionarUsuario(usuario: { id: number; name: string }) {
     this.usuarioActual = usuario.name;
     this.tarea.usuario = usuario.id;
+    this.tarea.usuarioNombre = usuario.name;
     this.mostrarSelectorUsuario = false;
   }
 
@@ -197,6 +199,7 @@ export class TaskFormComponent {
       fechaInicio: '',
       fechaFin: '',
       usuario: NaN,
+      usuarioNombre: '',
       archivos: [],
       proyecto: 'Proyecto General'
     };

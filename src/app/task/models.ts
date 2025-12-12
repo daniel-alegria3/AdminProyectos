@@ -5,6 +5,7 @@ export interface Tarea {
   fechaInicio: string;
   fechaFin: string;
   usuario: number;
+  usuarioNombre: string;
   archivos: Archivo[];
   proyecto: string;
   estado?: string;
