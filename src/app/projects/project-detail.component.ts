@@ -127,28 +127,15 @@ export class ProjectDetailComponent implements OnInit {
 
     this.svc.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
-        const data = Array.isArray(r?.data) ? r.data : [];
-        const first = data?.[0] || null;
+        const parsed = this.svc.parseProjectDetailsResponse(r);
         this.details = {
-          title: first?.title ?? first?.project_title ?? first?.titulo ?? null,
-          start_date: first?.start_date ?? first?.inicio ?? null,
-          end_date: first?.end_date ?? first?.fin ?? null,
-          visibility: first?.visibility ?? null
+          title: parsed.title ?? null,
+          start_date: parsed.start_date ?? null,
+          end_date: parsed.end_date ?? null,
+          visibility: parsed.visibility ?? null
         };
-        this.members = data.filter((x:any) =>
-          'user_id' in x || 'member_user_id' in x || x?.name || x?.email
-        ).map((m:any) => ({
-          user_id: m.user_id ?? m.member_user_id ?? null,
-          name: m.name ?? null,
-          email: m.email ?? null,
-          role: m.role ?? m.member_role ?? null
-        }));
-        this.files = data.filter((x:any) =>
-          'file_id' in x || 'filename' in x || 'name' in x
-        ).map((f:any) => ({
-          file_id: f.file_id ?? f.id ?? null,
-          filename: f.filename ?? f.name ?? 'archivo'
-        }));
+        this.members = parsed.members;
+        this.files = parsed.files;
         this.loading = false;
         this.cdr.markForCheck();
       },

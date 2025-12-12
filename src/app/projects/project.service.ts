@@ -38,18 +38,23 @@ export class ProjectService {
 
   // === PROYECTOS ===
   getAllMyProjects(): Observable<ApiResponse<Project[]>> {
-    return this.http.get<ApiResponse<Project[]>>(
-      `${this.apiUrl}/project/mine`,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
+    return this.http.get<ApiResponse<Project[]>>(`${this.apiUrl}/project/mine`, {
+      headers: this.jsonHeaders(),
+      withCredentials: true,
+    });
   }
 
-  createProject(payload: { title: string; visibility: string, description?: string, start_date?: string; end_date?: string }): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.apiUrl}/project`,
-      payload,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
+  createProject(payload: {
+    title: string;
+    visibility: string;
+    description?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/project`, payload, {
+      headers: this.jsonHeaders(),
+      withCredentials: true,
+    });
   }
 
   updateProject(payload: {
@@ -60,18 +65,17 @@ export class ProjectService {
     end_date?: string;
     visibility?: string; // usamos ARCHIVED para “eliminar”
   }) {
-    return this.http.patch(
-      `${this.apiUrl}/project`,
-      payload,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
+    return this.http.patch(`${this.apiUrl}/project`, payload, {
+      headers: this.jsonHeaders(),
+      withCredentials: true,
+    });
   }
 
   assignUserToProject(project_id: number, assigned_user_id: number, role: string = 'MEMBER') {
     return this.http.post(
       `${this.apiUrl}/project/assign`,
-      { project_id, assigned_user_id, role },
-      { headers: this.jsonHeaders(), withCredentials: true }
+      { project_id, user_id: assigned_user_id, role },
+      { headers: this.jsonHeaders(), withCredentials: true },
     );
   }
 
@@ -83,10 +87,28 @@ export class ProjectService {
   }
 
   getProjectDetails(project_id: number) {
-    return this.http.get(
-      `${this.apiUrl}/project/${project_id}`,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
+    return this.http.get(`${this.apiUrl}/project/${project_id}`, {
+      headers: this.jsonHeaders(),
+      withCredentials: true,
+    });
+  }
+
+  parseProjectDetailsResponse(response: any) {
+    const row = (response?.data || [])[0] || {};
+    return {
+      ...row,
+      members: JSON.parse(row.members || '[]').map((m: any) => ({
+        user_id: m.id_user ?? null,
+        name: m.name ?? null,
+        email: m.email ?? null,
+        role: m.role ?? null
+      })),
+      files: JSON.parse(row.files || '[]').map((f: any) => ({
+        file_id: f.file_id ?? null,
+        filename: f.filename ?? null,
+        size: f.size ?? null
+      }))
+    };
   }
 
   buildFileDownloadUrl(file_id: number) {
@@ -96,9 +118,9 @@ export class ProjectService {
   // === USUARIOS ===
   getAllUsers(): Observable<ApiResponse<User[]>> {
     // Backend: GET /user -> SELECT id_user as user_id, name, email, phone_number, account_status = "ENABLED" as is_enabled, is_admin
-    return this.http.get<ApiResponse<User[]>>(
-      `${this.apiUrl}/user`,
-      { headers: this.jsonHeaders(), withCredentials: true }
-    );
+    return this.http.get<ApiResponse<User[]>>(`${this.apiUrl}/user`, {
+      headers: this.jsonHeaders(),
+      withCredentials: true,
+    });
   }
 }

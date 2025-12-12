@@ -16,22 +16,22 @@ SET sql_mode = '';
 --------------------------------------------------------------------------------
 
 -- Test RegisterUser procedure
-CALL RegisterUser('Alice Johnson', 'alice@company.com', 'alicepass', '+1-555-0101', TRUE);
+CALL RegisterUser('Alice Johnson', 'alice@company.com', 'alicespassword', '+1-555-0101', TRUE);
 SET @user_alice = LAST_INSERT_ID();
 
-CALL RegisterUser('Bob Smith', 'bob@company.com', 'bobpass', '+1-555-0102', FALSE);
+CALL RegisterUser('Bob Smith', 'bob@company.com', 'bobspassword', '+1-555-0102', FALSE);
 SET @user_bob = LAST_INSERT_ID();
 
-CALL RegisterUser('Carol Williams', 'carol@company.com', 'carolpass', '+1-555-0103', FALSE);
+CALL RegisterUser('Carol Williams', 'carol@company.com', 'carolspassword', '+1-555-0103', FALSE);
 SET @user_carol = LAST_INSERT_ID();
 
-CALL RegisterUser('David Brown', 'david@company.com', 'davidpass', '+1-555-0104', FALSE);
+CALL RegisterUser('David Brown', 'david@company.com', 'davidspassword', '+1-555-0104', FALSE);
 SET @user_david = LAST_INSERT_ID();
 
-CALL RegisterUser('Eve Davis', 'eve@company.com', 'evepass', '+1-555-0105', FALSE);
+CALL RegisterUser('Eve Davis', 'eve@company.com', 'evespassword', '+1-555-0105', FALSE);
 SET @user_eve = LAST_INSERT_ID();
 
-CALL RegisterUser('Frank Wilson', 'frank@company.com', 'frankpass', '+1-555-0106', FALSE);
+CALL RegisterUser('Frank Wilson', 'frank@company.com', 'frankspassword', '+1-555-0106', FALSE);
 SET @user_frank = LAST_INSERT_ID();
 
 -- Test UpdateUserStatus procedure (Admin only)

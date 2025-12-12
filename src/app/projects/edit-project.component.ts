@@ -280,21 +280,9 @@ export class EditProjectComponent implements OnInit {
 
     this.projects.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
-        const data = Array.isArray(r?.data) ? r.data : [];
-        this.members = data.filter((x:any) =>
-          'user_id' in x || 'member_user_id' in x || x?.name || x?.email
-        ).map((m:any) => ({
-          user_id: m.user_id ?? m.member_user_id ?? null,
-          name: m.name ?? null,
-          email: m.email ?? null,
-          role: m.role ?? m.member_role ?? null
-        }));
-        this.files = data.filter((x:any) =>
-          'file_id' in x || 'filename' in x || 'name' in x
-        ).map((f:any) => ({
-          file_id: f.file_id ?? f.id ?? null,
-          filename: f.filename ?? f.name ?? 'archivo'
-        }));
+        const parsed = this.projects.parseProjectDetailsResponse(r);
+        this.members = parsed.members;
+        this.files = parsed.files;
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -382,15 +370,8 @@ export class EditProjectComponent implements OnInit {
   refreshMembers() {
     this.projects.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
-        const data = Array.isArray(r?.data) ? r.data : [];
-        this.members = data.filter((x:any) =>
-          'user_id' in x || 'member_user_id' in x || x?.name || x?.email
-        ).map((m:any) => ({
-          user_id: m.user_id ?? m.member_user_id ?? null,
-          name: m.name ?? null,
-          email: m.email ?? null,
-          role: m.role ?? m.member_role ?? null
-        }));
+        const parsed = this.projects.parseProjectDetailsResponse(r);
+        this.members = parsed.members;
         this.cdr.markForCheck();
       },
       error: () => {
@@ -432,13 +413,8 @@ export class EditProjectComponent implements OnInit {
   refreshFiles() {
     this.projects.getProjectDetails(this.project_id).subscribe({
       next: (r:any) => {
-        const data = Array.isArray(r?.data) ? r.data : [];
-        this.files = data.filter((x:any) =>
-          'file_id' in x || 'filename' in x || 'name' in x
-        ).map((f:any) => ({
-          file_id: f.file_id ?? f.id ?? null,
-          filename: f.filename ?? f.name ?? 'archivo'
-        }));
+        const parsed = this.projects.parseProjectDetailsResponse(r);
+        this.files = parsed.files;
         this.cdr.markForCheck();
       },
       error: () => {
