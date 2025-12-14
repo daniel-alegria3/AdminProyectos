@@ -92,10 +92,17 @@ userAuth.login = async (req, res) => {
 
     const [data] = await db.execute('CALL LoginUser(?, ?)', [email, password]);
     console.log(data[0]);
-    const result = data[0][0];
+    const result = data[0]?.[0];
 
-    if (!result['is_enabled']) {
-      return res.status(500).json({
+    if (!result) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    if (!result.is_enabled) {
+      return res.status(403).json({
         success: false,
         message: 'User is not enabled',
       });
