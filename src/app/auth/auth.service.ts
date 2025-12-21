@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -29,7 +29,7 @@ export interface AuthResponse {
 export interface UserSession {
   user_id: number;
   is_admin: boolean;
-  isLoggedIn: boolean;
+  is_logged_in: boolean;
 }
 
 @Injectable({
@@ -44,8 +44,6 @@ export class AuthService {
 
   // Public computed signals for reactive access
   currentUser = this.currentUserSignal.asReadonly();
-  isLoggedIn = computed(() => this.currentUserSignal()?.isLoggedIn ?? false);
-  isAdmin = computed(() => this.currentUserSignal()?.is_admin ?? false);
   userId = computed(() => this.currentUserSignal()?.user_id ?? null);
 
   constructor() {
@@ -64,11 +62,11 @@ export class AuthService {
       })
       .pipe(
         tap((response) => {
-          if (response.success && response.data) {
+          if (response.success) {
             const userSession: UserSession = {
-              user_id: response.data.user_id || 0,
-              is_admin: response.data.is_admin || false,
-              isLoggedIn: true,
+              user_id: response.data?.user_id || 0,
+              is_admin: response.data?.is_admin || false,
+              is_logged_in: true,
             };
             this.currentUserSignal.set(userSession);
           } else {
@@ -76,7 +74,7 @@ export class AuthService {
           }
         }),
         tap(() => true as boolean),
-        catchError(() => {
+        catchError((err) => {
           this.currentUserSignal.set(null);
           return of(false);
         }),
@@ -98,7 +96,7 @@ export class AuthService {
             const userSession: UserSession = {
               user_id: response.data.user_id || 0,
               is_admin: response.data.is_admin || false,
-              isLoggedIn: true,
+              is_logged_in: true,
             };
             this.currentUserSignal.set(userSession);
           }
@@ -116,5 +114,15 @@ export class AuthService {
 
   getCurrentUser(): UserSession | null {
     return this.currentUserSignal();
+  }
+
+  async isLoggedIn(): Promise<boolean> {
+    await firstValueFrom(this.checkSession());
+    return this.currentUserSignal()?.is_logged_in ?? false;
+  }
+
+  async isAdmin(): Promise<boolean> {
+    await firstValueFrom(this.checkSession());
+    return this.currentUserSignal()?.is_admin ?? false;
   }
 }

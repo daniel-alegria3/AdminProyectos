@@ -27,7 +27,8 @@ export class Navbar {
   });
 
   logout() {
-    this.authService.logout();
-    this.router.navigate(['/auth']);
+    this.authService.logout().subscribe(() => {
+      this.router.navigate(['/auth']);
+    });
   }
 }

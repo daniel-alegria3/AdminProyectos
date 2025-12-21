@@ -3,10 +3,10 @@ import { Routes } from '@angular/router';
 import { Auth } from './auth/auth';
 import { Task } from '@/task/task';
 import { BackendTest } from './backend-test/backend-test';
-import { authGuard, authRedirectGuard } from '@/auth/auth.guard';
+import { authGuard, guestGuard } from '@/auth/auth.guard';
 
 export const routes: Routes = [
-  { path: 'auth', component: Auth, canActivate: [authRedirectGuard] },
+  { path: 'auth', component: Auth, canActivate: [guestGuard] },
   {
     path: 'projects',
     loadComponent: () => import('./projects/project.page').then((m) => m.ProjectsPage),
