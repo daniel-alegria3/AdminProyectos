@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
 
 import { BackendTest } from './backend-test';
 
@@ -8,9 +10,9 @@ describe('BackendTest', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BackendTest]
-    })
-    .compileComponents();
+      imports: [BackendTest],
+      providers: [provideZonelessChangeDetection(), provideHttpClient()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(BackendTest);
     component = fixture.componentInstance;

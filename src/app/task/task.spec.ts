@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
 
 import { Task } from './task';
 
@@ -8,9 +11,9 @@ describe('Task', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Task]
-    })
-    .compileComponents();
+      imports: [Task],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(Task);
     component = fixture.componentInstance;

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
 
 import { UserManagement } from './user-management';
 
@@ -8,9 +10,9 @@ describe('UserManagement', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [UserManagement]
-    })
-    .compileComponents();
+      imports: [UserManagement],
+      providers: [provideZonelessChangeDetection(), provideHttpClient()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(UserManagement);
     component = fixture.componentInstance;
