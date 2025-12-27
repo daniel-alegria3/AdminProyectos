@@ -346,13 +346,6 @@ export class EditProjectComponent implements OnInit {
     const ids = Array.from(this.pendingAssign);
     let done = 0, failed = 0;
 
-    ids.forEach(uid => {
-      this.projects.assignUserToProject(this.project_id, uid, 'MEMBER').subscribe({
-        next: () => { done++; check(); },
-        error: () => { failed++; check(); }
-      });
-    });
-
     const check = () => {
       if (done + failed === ids.length) {
         this.assigning = false;
@@ -365,6 +358,15 @@ export class EditProjectComponent implements OnInit {
         this.refreshMembers();
       }
     };
+    
+    ids.forEach(uid => {
+      this.projects.assignUserToProject(this.project_id, uid, 'MEMBER').subscribe({
+        next: () => { done++; check(); },
+        error: () => { failed++; check(); }
+      });
+    });
+
+    
   }
 
   refreshMembers() {

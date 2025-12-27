@@ -192,6 +192,13 @@ export class CreateProjectComponent {
 
           let done = 0;
           let failed = 0;
+        const checkFinish = () => {
+            if (done + failed === ids.length) {
+              const extra = failed > 0 ? ` (fallaron ${failed} asignaciones)` : '';
+              this.finishOk('Proyecto creado y responsables asignados' + extra);
+            }
+          };
+
           ids.forEach((uid) => {
             this.projectSvc.assignUserToProject(project_id, uid, 'MEMBER').subscribe({
               next: (r2) => { done++; checkFinish(); },
@@ -199,12 +206,7 @@ export class CreateProjectComponent {
             });
           });
 
-          const checkFinish = () => {
-            if (done + failed === ids.length) {
-              const extra = failed > 0 ? ` (fallaron ${failed} asignaciones)` : '';
-              this.finishOk('Proyecto creado y responsables asignados' + extra);
-            }
-          };
+          
         };
 
         if (upload$) {
