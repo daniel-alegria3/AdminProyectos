@@ -319,7 +319,7 @@ const generalController = {
 
   updateProject: async (req, res) => {
     try {
-      console.error("no way");
+      console.error('no way');
       const { project_id, title, visibility, description, start_date, end_date } = req.body;
       const requesting_user_id = req.session.user_id;
 
@@ -401,7 +401,10 @@ const generalController = {
       const { project_id } = req.params;
       const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetProjectDetails(?)`, [project_id]);
+      const [rows] = await db.execute(`CALL GetProjectDetails(?, ?)`, [
+        project_id,
+        requesting_user_id,
+      ]);
 
       res.json({
         success: true,
@@ -418,12 +421,13 @@ const generalController = {
     try {
       const { project_id } = req.params;
       const { filter_user_id } = req.query;
-      // const requesting_user_id = req.session.user_id; // <-- ESTO SOBRABA
+      const requesting_user_id = req.session.user_id;
 
       // CORREGIDO: Solo enviamos 2 argumentos (project_id, filter_user_id)
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [
         project_id,
-        filter_user_id || null
+        filter_user_id || null,
+        requesting_user_id,
       ]);
       res.json({
         success: true,
@@ -438,13 +442,13 @@ const generalController = {
   getMyProjectTasks: async (req, res) => {
     try {
       const { project_id } = req.params;
-      // const requesting_user_id = req.session.user_id; // <-- ESTO SOBRABA
+      const requesting_user_id = req.session.user_id;
       const filter_user_id = req.session.user_id;
 
-      // CORREGIDO: Solo enviamos 2 argumentos
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [
-          project_id, 
-          filter_user_id
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [
+        project_id,
+        filter_user_id,
+        requesting_user_id,
       ]);
       res.json({
         success: true,
@@ -458,15 +462,7 @@ const generalController = {
 
   createTask: async (req, res) => {
     try {
-      const {
-        project_id,
-        title,
-        description,
-        start_date,
-        end_date,
-        user_id,
-        role,
-      } = req.body;
+      const { project_id, title, description, start_date, end_date, user_id, role } = req.body;
 
       const creator_user_id = req.session.user_id;
 
@@ -516,7 +512,7 @@ const generalController = {
       const { task_id } = req.params;
       const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetTaskDetails(?)`, [task_id]);
+      const [rows] = await db.execute(`CALL GetTaskDetails(?, ?)`, [task_id, requesting_user_id]);
 
       res.json({
         success: true,
@@ -540,13 +536,13 @@ const generalController = {
         description || null,
         start_date || null,
         end_date || null,
-        requesting_user_id
+        requesting_user_id,
       ]);
 
       res.json({
         success: true,
         message: 'Tarea actualizada exitosamente',
-        data: rows[0][0]
+        data: rows[0][0],
       });
     } catch (error) {
       handleError(res, error);
@@ -565,7 +561,7 @@ const generalController = {
 
       res.json({
         success: true,
-        message: 'Tarea eliminada exitosamente'
+        message: 'Tarea eliminada exitosamente',
       });
     } catch (error) {
       handleError(res, error);
@@ -581,7 +577,11 @@ const generalController = {
       }
       const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL UpdateTaskStatus(?, ?, ?)', [task_id, progress_status, requesting_user_id]);
+      const [rows] = await db.execute('CALL UpdateTaskStatus(?, ?, ?)', [
+        task_id,
+        progress_status,
+        requesting_user_id,
+      ]);
 
       res.json({
         success: true,
@@ -643,13 +643,15 @@ const generalController = {
   },
 
   uploadProjectFile: createUploadHandler(
-    (projectId, fileId, requesting_user_id) => db.execute('CALL AttachFileToProject(?, ?, ?)', [projectId, fileId, requesting_user_id]),
+    (projectId, fileId, requesting_user_id) =>
+      db.execute('CALL AttachFileToProject(?, ?, ?)', [projectId, fileId, requesting_user_id]),
     'project_id',
     'Project',
   ),
 
   uploadTaskFile: createUploadHandler(
-    (taskId, fileId, requesting_user_id) => db.execute('CALL AttachFileToTask(?, ?, ?)', [taskId, fileId, requesting_user_id]),
+    (taskId, fileId, requesting_user_id) =>
+      db.execute('CALL AttachFileToTask(?, ?, ?)', [taskId, fileId, requesting_user_id]),
     'task_id',
     'Task',
   ),
