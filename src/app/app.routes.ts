@@ -4,8 +4,10 @@ import { Auth } from './auth/auth';
 import { Task } from '@/task/task';
 import { BackendTest } from './backend-test/backend-test';
 import { authGuard, guestGuard } from '@/auth/auth.guard';
-
+import { TaskDetailComponent } from './components/task-detail/task-detail';
+ 
 export const routes: Routes = [
+  { path: 'task/:id', component: TaskDetailComponent },
   { path: 'auth', component: Auth, canActivate: [guestGuard] },
   {
     path: 'projects',

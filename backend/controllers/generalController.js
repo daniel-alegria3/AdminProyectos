@@ -401,7 +401,7 @@ const generalController = {
       const { project_id } = req.params;
       const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetProjectDetails(?, ?)`, [project_id, requesting_user_id]);
+      const [rows] = await db.execute(`CALL GetProjectDetails(?)`, [project_id]);
 
       res.json({
         success: true,
@@ -418,12 +418,12 @@ const generalController = {
     try {
       const { project_id } = req.params;
       const { filter_user_id } = req.query;
-      const requesting_user_id = req.session.user_id;
+      // const requesting_user_id = req.session.user_id; // <-- ESTO SOBRABA
 
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [
+      // CORREGIDO: Solo enviamos 2 argumentos (project_id, filter_user_id)
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [
         project_id,
-        filter_user_id || null,
-        requesting_user_id,
+        filter_user_id || null
       ]);
       res.json({
         success: true,
@@ -438,10 +438,14 @@ const generalController = {
   getMyProjectTasks: async (req, res) => {
     try {
       const { project_id } = req.params;
-      const requesting_user_id = req.session.user_id;
+      // const requesting_user_id = req.session.user_id; // <-- ESTO SOBRABA
       const filter_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL GetTasksByProject(?, ?, ?)', [project_id, filter_user_id, requesting_user_id]);
+      // CORREGIDO: Solo enviamos 2 argumentos
+      const [rows] = await db.execute('CALL GetTasksByProject(?, ?)', [
+          project_id, 
+          filter_user_id
+      ]);
       res.json({
         success: true,
         message: 'Mis tareas de proyecto recuperados exitosamente',
@@ -512,12 +516,56 @@ const generalController = {
       const { task_id } = req.params;
       const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute(`CALL GetTaskDetails(?, ?)`, [task_id, requesting_user_id]);
+      const [rows] = await db.execute(`CALL GetTaskDetails(?)`, [task_id]);
 
       res.json({
         success: true,
         message: 'Detalles de tarea recuperados exitosamente',
         data: rows[0],
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  updateTask: async (req, res) => {
+    try {
+      const { task_id } = req.params;
+      const { title, description, start_date, end_date } = req.body;
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL UpdateTask(?, ?, ?, ?, ?, ?)', [
+        task_id,
+        title || null,
+        description || null,
+        start_date || null,
+        end_date || null,
+        requesting_user_id
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Tarea actualizada exitosamente',
+        data: rows[0][0]
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  deleteTask: async (req, res) => {
+    try {
+      const { task_id } = req.params;
+      const requesting_user_id = req.session.user_id;
+
+      // Primero eliminamos asignaciones y archivos asociados
+      await db.execute('DELETE FROM TaskAssignment WHERE id_task = ?', [task_id]);
+      await db.execute('DELETE FROM TaskFile WHERE id_task = ?', [task_id]);
+      await db.execute('DELETE FROM Task WHERE id_task = ?', [task_id]);
+
+      res.json({
+        success: true,
+        message: 'Tarea eliminada exitosamente'
       });
     } catch (error) {
       handleError(res, error);
