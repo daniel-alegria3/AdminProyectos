@@ -1,0 +1,131 @@
+<div class="container py-4">
+
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Cargando detalles...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="alert alert-danger shadow-sm">
+    ⚠️ {{ error }} <button class="btn btn-link p-0 align-baseline" (click)="volver()">Volver</button>
+  </div>
+
+  <div *ngIf="tarea && !loading" class="animate-fade-in">
+    
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <button class="btn btn-link text-decoration-none p-0 mb-1 text-secondary" (click)="volver()">
+          ⬅ Volver a la lista
+        </button>
+        <h2 class="fw-bold mb-0 text-dark">{{ tarea.titulo }}</h2>
+        <div class="text-muted small mt-1">
+          Proyecto: <span class="fw-bold text-primary">{{ tarea.proyecto || 'General' }}</span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge rounded-pill px-3 py-2" 
+              [ngClass]="{
+                'bg-warning text-dark': tarea.estado === 'PENDING',
+                'bg-primary': tarea.estado === 'IN_PROGRESS',
+                'bg-success': tarea.estado === 'COMPLETED'
+              }">
+          {{ tarea.estado === 'PENDING' ? '⏳ Pendiente' : 
+             tarea.estado === 'IN_PROGRESS' ? '🔄 En Progreso' : 
+             '✅ Completada' }}
+        </span>
+        
+        <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" (click)="editar()">
+          ✏️ <span class="d-none d-md-inline">Editar</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      
+      <div class="col-lg-8">
+        
+        <div class="card section-card mb-4 shadow-sm border-0">
+          <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+            <h5 class="fw-bold text-secondary mb-0">📄 Descripción</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="description-box text-dark">
+              {{ tarea.descripcion || 'Sin descripción detallada.' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card shadow-sm border-0">
+          <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between">
+            <h5 class="fw-bold text-secondary mb-0">📎 Archivos Adjuntos</h5>
+            <span class="badge bg-light text-dark border">{{ (tarea.archivos || []).length }}</span>
+          </div>
+          <div class="card-body p-4">
+            
+            <div *ngIf="tarea.archivos && tarea.archivos.length > 0" class="d-flex flex-column gap-2">
+              <div *ngFor="let archivo of tarea.archivos" class="file-item p-3 rounded border d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="file-icon fs-4">{{ getIconoArchivo(archivo.tipo) }}</div>
+                  <div>
+                    <div class="fw-bold text-dark">{{ archivo.nombre }}</div>
+                    <small class="text-muted">{{ archivo.size }} bytes</small>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-light border" (click)="descargarArchivo(archivo)">⬇</button>
+              </div>
+            </div>
+
+            <div *ngIf="!tarea.archivos || tarea.archivos.length === 0" class="text-center py-4 border rounded border-dashed bg-light text-muted">
+              <small>No hay archivos adjuntos en esta tarea.</small>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-lg-4">
+        
+        <div class="card section-card shadow-sm border-0 h-100">
+          <div class="card-body p-4">
+            
+            <div class="mb-4">
+              <h6 class="fw-bold text-uppercase text-secondary small mb-3 border-bottom pb-2">📅 Cronograma</h6>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted small">Fecha Inicio</span>
+                <span class="fw-bold text-dark">{{ tarea.fechaInicio | date:'dd MMM yyyy' }}</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted small">Fecha Vencimiento</span>
+                <span class="fw-bold text-danger">{{ tarea.fechaFin | date:'dd MMM yyyy' }}</span>
+              </div>
+            </div>
+
+            <div>
+              <h6 class="fw-bold text-uppercase text-secondary small mb-3 border-bottom pb-2">👥 Equipo Asignado</h6>
+              
+              <div *ngIf="tarea.miembros && tarea.miembros.length > 0" class="d-flex flex-column gap-3">
+                <div *ngFor="let miembro of tarea.miembros" class="d-flex align-items-center">
+                  <div class="avatar-circle bg-primary text-white me-3 shadow-sm">
+                    {{ (miembro.nombre_completo || 'U').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="overflow-hidden">
+                    <div class="fw-bold text-dark text-truncate">{{ miembro.nombre_completo }}</div>
+                    <small class="text-muted d-block text-truncate">{{ miembro.email || 'Miembro' }}</small>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="!tarea.miembros || tarea.miembros.length === 0" class="text-center text-muted py-3 bg-light rounded">
+                <small>Sin miembros asignados</small>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -48,6 +48,8 @@ router.post('/task', userAuth.requireLogin, gc.createTask);
 router.post('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
 router.patch('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
 router.patch('/task/progress_status', userAuth.requireLogin, gc.updateTaskStatus);
+router.patch('/task/:task_id', userAuth.requireLogin, gc.updateTask);
+router.delete('/task/:task_id', userAuth.requireLogin, gc.deleteTask);
 
 router.get('/task', userAuth.requireLogin, gc.getUserTasks);
 router.get('/task/:task_id', userAuth.requireLogin, gc.getTaskDetails);

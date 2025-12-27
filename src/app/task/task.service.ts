@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Tarea } from './models';
+import { map } from 'rxjs/operators';
+import { Tarea, Archivo, Miembro } from './models'; // Asegúrate que Miembro y Archivo estén exportados en models.ts
 
 @Injectable({
   providedIn: 'root'
@@ -17,32 +18,92 @@ export class TaskService {
     });
   }
 
-  getProjectDetails(project_id: number): Observable<any> {
-    return this.http.get(`${this.apiUrl}/project/${project_id}`, {
-      headers: this.getHeaders(),
-      withCredentials: true,
-    });
+  // ==========================================
+  // LECTURA DE DATOS (Queries)
+  // ==========================================
+
+  // Obtiene los detalles completos y transforma la respuesta del backend al modelo del frontend
+  // En task.service.ts
+
+// En src/app/task/task.service.ts
+
+  getTaskDetails(id: number): Observable<Tarea> {
+    return this.http.get<any>(`${this.apiUrl}/task/${id}`, {
+      withCredentials: true
+    }).pipe(
+      map(response => {
+        // 1. Extraer datos (Backend a veces manda Array, a veces Objeto)
+        const data = response.data || response;
+        const tareaRaw = Array.isArray(data) ? data[0] : data;
+
+        if (!tareaRaw) throw new Error('No se encontraron datos de la tarea');
+
+        // Helper para convertir JSON string a Objetos reales
+        const parsear = (val: any) => {
+          try { return typeof val === 'string' ? JSON.parse(val) : (val || []); } 
+          catch { return []; }
+        };
+
+        const listaMiembros = parsear(tareaRaw.members);
+        const listaArchivos = parsear(tareaRaw.files);
+
+        // 2. TRADUCCIÓN: Backend (Inglés) -> Frontend (Español)
+        const tareaTraducida: Tarea = {
+          id: tareaRaw.id_task || tareaRaw.id,
+          titulo: tareaRaw.title,
+          descripcion: tareaRaw.description,
+          
+          // Usamos 'as any' para evitar errores si el backend manda 'pending' en vez de 'PENDING'
+          estado: (tareaRaw.progress_status || 'PENDING') as any, 
+          
+          fechaInicio: tareaRaw.start_date,
+          fechaFin: tareaRaw.end_date,
+          proyecto: tareaRaw.project_title || 'General',
+
+          // 👇 ESTA LÍNEA ES VITAL (id del dueño)
+          usuario: tareaRaw.user_id || (listaMiembros[0] ? listaMiembros[0].user_id : 0),
+          usuarioNombre: listaMiembros.length > 0 ? listaMiembros[0].name : 'Sin asignar',
+
+          // Mapeo de Miembros
+          miembros: listaMiembros.map((m: any) => ({
+            id: m.user_id, // Tu interface usa 'id'
+            nombre_completo: m.name,
+            email: m.email,
+            rol: m.role
+          })),
+
+          // Mapeo de Archivos con validación de tipo estricta
+          archivos: listaArchivos.map((f: any) => {
+            const ext = (f.extension || '').toLowerCase();
+            return {
+              id: f.file_id || f.id,
+              nombre: f.filename || f.name,
+              size: f.size,
+              // Validación estricta para que coincida con tu modelo 'pdf' | 'jpg' | ...
+              tipo: (['pdf', 'doc', 'docx', 'jpg'].includes(ext)) ? ext : 'otro',
+              url: '' 
+            };
+          })
+        };
+
+        return tareaTraducida;
+      })
+    );
   }
 
-  getTaskDetails(task_id: number): Observable<any> {
-    return this.http.get(`${this.apiUrl}/task/${task_id}`, {
-      headers: this.getHeaders(),
-      withCredentials: true,
-    });
-  }
-
-  // Obtener tareas del usuario (adaptado al backend existente)
   getUserTasks(): Observable<any> {
     console.log('🚀 TaskService: Llamando getUserTasks()');
-    console.log('🔗 URL completa:', `${this.apiUrl}/task`);
-    
     return this.http.get(`${this.apiUrl}/task`, { 
       headers: this.getHeaders(),
       withCredentials: true 
     });
   }
 
-  // Obtener todas las tareas de un proyecto en especifico
+  // En task.service.ts, si no existe:
+  getProjectDetails(projectId: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/project/${projectId}`, { withCredentials: true });
+  }
+
   getAllProjectTasks(project_id: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/project/${project_id}/tasks`, { 
       headers: this.getHeaders(),
@@ -50,7 +111,6 @@ export class TaskService {
     });
   }
 
-  // Obtener las tareas del usuario de un proyecto en especifico
   getProjectUserTasks(project_id: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/project/${project_id}/tasks/mine`, { 
       headers: this.getHeaders(),
@@ -58,8 +118,24 @@ export class TaskService {
     });
   }
 
+  getAllUsers(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/user`, { 
+      headers: this.getHeaders(),
+      withCredentials: true 
+    });
+  }
 
-  // Crear nueva tarea (adaptado al backend existente)
+  // ==========================================
+  // ESCRITURA Y GESTIÓN (Commands)
+  // ==========================================
+
+    // En task.service.ts
+  deleteTask(taskId: number): Observable<any> {
+    // Asegúrate de que tu backend tenga esta ruta, o usa la lógica que corresponda
+    // Si usas procedimientos almacenados, podría ser un POST a /task/delete
+    return this.http.delete<any>(`${this.apiUrl}/task/${taskId}`, { withCredentials: true });
+  }
+
   createTask(tarea: Partial<Tarea>): Observable<any> {
     const taskData = {
       title: tarea.titulo,
@@ -67,7 +143,7 @@ export class TaskService {
       start_date: tarea.fechaInicio,
       end_date: tarea.fechaFin,
       user_id: tarea.usuario,
-      project_id: 1 // Proyecto por defecto
+      project_id: 1 // TODO: Verifica si deberías recibir el ID del proyecto dinámicamente
     };
 
     return this.http.post(`${this.apiUrl}/task`, taskData, { 
@@ -76,15 +152,6 @@ export class TaskService {
     });
   }
 
-  // Obtener todos los usuarios disponibles
-  getAllUsers(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/user`, { 
-      headers: this.getHeaders(),
-      withCredentials: true 
-    });
-  }
-
-  // Actualizar estado de tarea
   updateTaskStatus(taskId: number, status: string): Observable<any> {
     return this.http.patch(`${this.apiUrl}/task/progress_status`, 
       { task_id: taskId, progress_status: status }, 
@@ -95,7 +162,17 @@ export class TaskService {
     );
   }
 
-  // Subir archivos a una tarea
+  updateTask(taskId: number, taskData: { title?: string; description?: string; start_date?: string; end_date?: string }): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/task/${taskId}`, taskData, {
+      headers: this.getHeaders(),
+      withCredentials: true
+    });
+  }
+
+  // ==========================================
+  // GESTIÓN DE ARCHIVOS (RF05)
+  // ==========================================
+
   uploadTaskFiles(taskId: number, files: FileList): Observable<any> {
     const formData = new FormData();
     formData.append('task_id', taskId.toString());
@@ -106,6 +183,15 @@ export class TaskService {
 
     return this.http.post(`${this.apiUrl}/file/to_task`, formData, { 
       withCredentials: true 
+    });
+  }
+
+  // NUEVO: Método para descargar archivos (Requisito del Líder y RF05)
+  // Recibe el ID del archivo y devuelve un Blob (binario)
+  downloadFile(fileId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/file/${fileId}`, {
+      responseType: 'blob', // Importante para archivos PDF/DOC/JPG
+      withCredentials: true
     });
   }
 }
