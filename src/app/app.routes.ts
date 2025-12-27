@@ -7,7 +7,7 @@ import { authGuard, guestGuard } from '@/auth/auth.guard';
 import { TaskDetailComponent } from './components/task-detail/task-detail';
  
 export const routes: Routes = [
-  { path: 'task/:id', component: TaskDetailComponent },
+  { path: 'task/:id', component: TaskDetailComponent, canActivate: [authGuard] },
   { path: 'auth', component: Auth, canActivate: [guestGuard] },
   {
     path: 'projects',
