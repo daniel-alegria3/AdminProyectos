@@ -1,9 +1,9 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, Location } from '@angular/common'; 
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { TaskService } from '../../task/task.service';
-import { Tarea, Archivo } from '../../task/models';
-import { TaskFormComponent } from '../../task/task-form.component';
+import { TaskService } from '@/task/task.service';
+import { Tarea, Archivo } from '@/task/models';
+import { TaskFormComponent } from '@/task/task-form.component';
 
 @Component({
   selector: 'app-task-detail',
