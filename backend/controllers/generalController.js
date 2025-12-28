@@ -39,6 +39,7 @@ const createUploadHandler = (attachFunction, entityIdField, entityName) => {
 
         const uploadedFiles = [];
         const errors = [];
+        const { requesting_user_id } = req.body;
 
         // Process each file
         for (const file of req.files) {
@@ -57,7 +58,7 @@ const createUploadHandler = (attachFunction, entityIdField, entityName) => {
             const file_id = rows[0][0].file_id;
 
             // Attach file using the provided attach function
-            [rows] = await attachFunction(entityId, file_id, req.session.user_id);
+            [rows] = await attachFunction(entityId, file_id, requesting_user_id || req.session.user_id);
 
             uploadedFiles.push({
               file_id,
@@ -319,7 +320,6 @@ const generalController = {
 
   updateProject: async (req, res) => {
     try {
-      console.error('no way');
       const { project_id, title, visibility, description, start_date, end_date } = req.body;
       const requesting_user_id = req.session.user_id;
 
@@ -476,7 +476,7 @@ const generalController = {
         description || null,
         start_date || null,
         end_date || null,
-        user_id || null,
+        user_id || creator_user_id || null,
         role || null,
         creator_user_id,
       ]);
@@ -554,10 +554,7 @@ const generalController = {
       const { task_id } = req.params;
       const requesting_user_id = req.session.user_id;
 
-      // Primero eliminamos asignaciones y archivos asociados
-      await db.execute('DELETE FROM TaskAssignment WHERE id_task = ?', [task_id]);
-      await db.execute('DELETE FROM TaskFile WHERE id_task = ?', [task_id]);
-      await db.execute('DELETE FROM Task WHERE id_task = ?', [task_id]);
+      const [rows] = await db.execute('CALL DeleteTask(?, ?)', [task_id, requesting_user_id]);
 
       res.json({
         success: true,
@@ -617,11 +614,36 @@ const generalController = {
     }
   },
 
+  UNassignUserToTask: async (req, res) => {
+    try {
+      const { task_id, user_id } = req.body;
+
+      if (!user_id) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL UNassignUserToTask(?, ?, ?)', [
+        task_id,
+        user_id,
+        requesting_user_id,
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Usuario asignado a tarea exitosamente',
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
   downloadFile: async (req, res) => {
     try {
       const { file_id } = req.params;
+      const requesting_user_id = req.session.user_id;
 
-      const [rows] = await db.execute('CALL DownloadFile(?)', [file_id]);
+      const [rows] = await db.execute('CALL DownloadFile(?, ?)', [file_id, requesting_user_id]);
       const result = rows[0][0];
 
       if (!result) {
@@ -637,6 +659,22 @@ const generalController = {
 
       // Send raw binary data
       res.send(result.data);
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
+  deleteFile: async (req, res) => {
+    try {
+      const { file_id } = req.params;
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL DeleteFile(?, ?)', [file_id, requesting_user_id]);
+
+      res.json({
+        success: true,
+        message: 'Archivo eliminado exitosamente',
+      });
     } catch (error) {
       handleError(res, error);
     }

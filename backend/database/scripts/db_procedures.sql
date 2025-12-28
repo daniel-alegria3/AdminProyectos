@@ -406,7 +406,7 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only project owners can update project details';
   END IF;
@@ -414,7 +414,7 @@ BEGIN
   -- Members (guaranteed at least 1)
   SELECT
     JSON_ARRAYAGG(
-      JSON_OBJECT( 'id_user', u.id_user, 'name', u.name, 'email', u.email, 'role', pa.role)
+      JSON_OBJECT( 'user_id', u.id_user, 'name', u.name, 'email', u.email, 'role', pa.role)
     )
     INTO v_members
     FROM ProjectAssignment pa
@@ -472,9 +472,9 @@ BEGIN
     AND id_user = p_creator_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Only project owners|members can update project details';
+    SET MESSAGE_TEXT = 'Only project owners|members can create project tasks';
   END IF;
 
   -- Create task
@@ -515,17 +515,18 @@ BEGIN
   DECLARE v_files   JSON;
   DECLARE v_role VARCHAR(16);
 
-  -- Check if the user is the task owner or member
-  SELECT role
+  -- Check if the user a project owner or member
+  SELECT pa.role
     INTO v_role
-    FROM TaskAssignment
-    WHERE id_task = p_task_id
-    AND id_user = p_requesting_user_id
+    FROM Task t
+    JOIN ProjectAssignment pa ON pa.id_project = t.id_project
+    WHERE t.id_task = p_task_id
+    AND pa.id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Only task owners|members can get the details';
+    SET MESSAGE_TEXT = 'Only project owners|members can get the task details';
   END IF;
 
   -- Members (could be 0)
@@ -553,11 +554,21 @@ BEGIN
     WHERE tf.id_task = p_task_id;
 
   -- Final row
+  -- Check if the user is the task owner or member
+  SET v_role = NULL;
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
   SELECT
     t.*,
     v_members AS members,
     v_files   AS files,
-    p.title   AS project_title
+    p.title   AS project_title,
+    IF(v_role IS NOT NULL, TRUE, FALSE) AS can_edit
     FROM Task t
     JOIN Project p ON t.id_project = p.id_project
     WHERE t.id_task = p_task_id;
@@ -626,6 +637,55 @@ END; //
 
 --------------------------------------------------------------------------------
 
+CREATE PROCEDURE UNAssignUserToTask(
+  in p_task_id int,
+  in p_user_id int,
+  in p_requesting_user_id int
+)
+BEGIN
+  DECLARE v_role VARCHAR(16);
+  DECLARE v_target_role VARCHAR(16);
+
+  -- Check if the requesting user is the task owner
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR v_role <> 'OWNER' THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners can unassign users from tasks';
+  END IF;
+
+  -- Check if target user exists in task assignment
+  SELECT role
+    INTO v_target_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_user_id
+    LIMIT 1;
+
+  IF v_target_role IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'User is not assigned to this task';
+  END IF;
+
+  -- Prevent unassigning the task owner
+  IF v_target_role = 'OWNER' THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Cannot unassign the task owner';
+  END IF;
+
+  -- Delete the assignment
+  DELETE FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_user_id;
+END; //
+
+--------------------------------------------------------------------------------
+
 CREATE PROCEDURE UpdateTask(
   in p_task_id int,
   in p_title varchar(128),
@@ -645,20 +705,47 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only task owners|members can update task details';
   END IF;
 
   UPDATE Task
-    SET 
+    SET
       title = COALESCE(p_title, title),
       description = COALESCE(p_description, description),
       start_date = COALESCE(p_start_date, start_date),
       end_date = COALESCE(p_end_date, end_date)
     WHERE id_task = p_task_id;
-    
+
   SELECT p_task_id as task_id;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE DeleteTask(
+  in p_task_id int,
+  in p_requesting_user_id int
+)
+BEGIN
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the task owner or member
+  SELECT role
+    INTO v_role
+    FROM TaskAssignment
+    WHERE id_task = p_task_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners|members can delete a task';
+  END IF;
+
+  -- DELETE FROM TaskAssignment WHERE id_task = p_task_id;
+  -- DELETE FROM TaskFile WHERE id_task = p_task_id;
+  DELETE FROM Task WHERE id_task = p_task_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -686,7 +773,7 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only task owners|members can chage task progress status';
   END IF;
@@ -740,7 +827,7 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only project owners|members can get project tasks';
   END IF;
@@ -779,10 +866,85 @@ END; //
 
 --------------------------------------------------------------------------------
 
-CREATE PROCEDURE DownloadFile (
-    IN p_id_file INT
+CREATE PROCEDURE DeleteFile(
+  in p_file_id int,
+  in p_requesting_user_id int
 )
 BEGIN
+  DECLARE v_has_permission BOOLEAN DEFAULT FALSE;
+
+  -- Check if user is member/owner of project that file is in
+  IF EXISTS (
+    SELECT 1
+    FROM ProjectFile pf
+    JOIN ProjectAssignment pa ON pa.id_project = pf.id_project
+    WHERE pf.id_file = p_file_id
+    AND pa.id_user = p_requesting_user_id
+    AND pa.role IN ('OWNER', 'MEMBER')
+  ) THEN
+    SET v_has_permission = TRUE;
+  END IF;
+
+  -- Check if user is member/owner of task that file is in
+  IF EXISTS (
+    SELECT 1
+    FROM TaskFile tf
+    JOIN Task t ON tf.id_task = t.id_task
+    JOIN ProjectAssignment pa ON pa.id_project = t.id_project
+    WHERE tf.id_file = p_file_id
+    AND pa.id_user = p_requesting_user_id
+    AND pa.role IN ('OWNER', 'MEMBER')
+  ) THEN
+    SET v_has_permission = TRUE;
+  END IF;
+
+  IF NOT v_has_permission THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project/task owners|members can delete files';
+  END IF;
+
+  DELETE FROM `File` WHERE id_file = p_file_id;
+END; //
+
+--------------------------------------------------------------------------------
+
+CREATE PROCEDURE DownloadFile (
+    IN p_file_id INT,
+    in p_requesting_user_id int
+)
+BEGIN
+  DECLARE v_has_permission BOOLEAN DEFAULT FALSE;
+
+  -- Check if user is member/owner of project that file is in
+  IF EXISTS (
+    SELECT 1
+    FROM ProjectFile pf
+    JOIN ProjectAssignment pa ON pa.id_project = pf.id_project
+    WHERE pf.id_file = p_file_id
+    AND pa.id_user = p_requesting_user_id
+    AND pa.role IN ('OWNER', 'MEMBER')
+  ) THEN
+    SET v_has_permission = TRUE;
+  END IF;
+
+  -- Check if user is member/owner of task that file is in
+  IF EXISTS (
+    SELECT 1
+    FROM TaskFile tf
+    JOIN Task t ON tf.id_task = t.id_task
+    JOIN ProjectAssignment pa ON pa.id_project = t.id_project
+    WHERE tf.id_file = p_file_id
+    AND pa.id_user = p_requesting_user_id
+    AND pa.role IN ('OWNER', 'MEMBER')
+  ) THEN
+    SET v_has_permission = TRUE;
+  END IF;
+
+  IF NOT v_has_permission THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only project/task owners|members can delete files';
+  END IF;
+
   SELECT
     f.id_file,
     CONCAT(f.name, '.', f.extension) AS filename,
@@ -790,7 +952,7 @@ BEGIN
     f.data,
     f.size
     FROM `File` f
-    WHERE f.id_file = p_id_file;
+    WHERE f.id_file = p_file_id;
 END; //
 
 --------------------------------------------------------------------------------
@@ -811,7 +973,7 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only project owners|members can attach files';
   END IF;
@@ -838,7 +1000,7 @@ BEGIN
     AND id_user = p_requesting_user_id
     LIMIT 1;
 
-  IF v_role IS NULL OR (v_role <> 'OWNER' AND v_role <> 'MEMBER') THEN
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'Only task owners|members can attach files';
   END IF;

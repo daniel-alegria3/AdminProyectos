@@ -54,7 +54,7 @@ import { TaskFormComponent } from '@/task/task-form.component';
             </div>
           </div>
           
-          <button class="btn btn-outline-primary px-4 py-2 fw-bold shadow-sm position-absolute top-0 end-0" style="margin-top: 40px;" (click)="editar()">
+          <button *ngIf="tarea.puedo_editar" class="btn btn-outline-primary px-4 py-2 fw-bold shadow-sm position-absolute top-0 end-0" style="margin-top: 40px;" (click)="editar()">
             ✏️ Editar
           </button>
         </div>

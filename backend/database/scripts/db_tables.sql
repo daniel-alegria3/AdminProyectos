@@ -25,8 +25,8 @@ CREATE TABLE `ProjectAssignment` (
   role enum('OWNER', 'MEMBER', 'REVIEWER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_project, id_user),
-  FOREIGN KEY (id_project) REFERENCES `Project`(id_project),
-  FOREIGN KEY (id_user) REFERENCES `User`(id_user)
+  FOREIGN KEY (id_project) REFERENCES `Project`(id_project) ON DELETE CASCADE,
+  FOREIGN KEY (id_user) REFERENCES `User`(id_user) ON DELETE CASCADE
 );
 
 --------------------------------------------------------------------------------
@@ -41,7 +41,7 @@ CREATE TABLE `Task` (
   progress_status enum('PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')
     DEFAULT 'PENDING' NOT NULL,
 
-  FOREIGN KEY (id_project) REFERENCES Project(id_project)
+  FOREIGN KEY (id_project) REFERENCES Project(id_project) ON DELETE CASCADE
 );
 
 CREATE TABLE `TaskAssignment` (
@@ -50,8 +50,8 @@ CREATE TABLE `TaskAssignment` (
   role enum('OWNER', 'MEMBER') DEFAULT 'MEMBER' NOT NULL,
 
   PRIMARY KEY (id_task, id_user),
-  FOREIGN KEY (id_task) REFERENCES `Task`(id_task),
-  FOREIGN KEY (id_user) REFERENCES `User`(id_user)
+  FOREIGN KEY (id_task) REFERENCES `Task`(id_task) ON DELETE CASCADE,
+  FOREIGN KEY (id_user) REFERENCES `User`(id_user) ON DELETE CASCADE
 );
 
 --------------------------------------------------------------------------------
@@ -70,8 +70,8 @@ CREATE TABLE `ProjectFile` (
   id_file int, -- <<PK, FK>>
 
   PRIMARY KEY (id_project, id_file),
-  FOREIGN KEY (id_project) REFERENCES `Project`(id_project),
-  FOREIGN KEY (id_file) REFERENCES `File`(id_file)
+  FOREIGN KEY (id_project) REFERENCES `Project`(id_project) ON DELETE CASCADE,
+  FOREIGN KEY (id_file) REFERENCES `File`(id_file) ON DELETE CASCADE
 );
 
 CREATE TABLE `TaskFile` (
@@ -79,8 +79,8 @@ CREATE TABLE `TaskFile` (
   id_file int, -- <<PK, FK>>
 
   PRIMARY KEY (id_task, id_file),
-  FOREIGN KEY (id_task) REFERENCES `Task`(id_task),
-  FOREIGN KEY (id_file) REFERENCES `File`(id_file)
+  FOREIGN KEY (id_task) REFERENCES `Task`(id_task) ON DELETE CASCADE,
+  FOREIGN KEY (id_file) REFERENCES `File`(id_file) ON DELETE CASCADE
 );
 
 --------------------------------------------------------------------------------

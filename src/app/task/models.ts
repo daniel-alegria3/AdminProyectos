@@ -33,4 +33,5 @@ export interface Tarea {
   miembros?: Miembro[]; // RF06: Múltiples responsables [cite: 34]
   
   proyecto: string; // O el ID del proyecto
+  puedo_editar: boolean;
 }

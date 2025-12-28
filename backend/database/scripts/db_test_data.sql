@@ -175,12 +175,6 @@ SET @file_test_plan = LAST_INSERT_ID();
 CALL UploadFile('app_mockups', 'jpg', 0xFFD8FFE0, 2097152);
 SET @file_mockups = LAST_INSERT_ID();
 
--- Test DownloadFile procedure
-SELECT 'Download test for project_requirements.pdf:' AS info;
-CALL DownloadFile(@file_requirements);
-CALL DownloadFile(@file_wireframes);
-CALL DownloadFile(@file_db_diagram);
-
 -- Test AttachFileToProject procedure (p_requesting_user_id parameter added)
 CALL AttachFileToProject(@project_website, @file_requirements, @user_alice); -- project_requirements.pdf to Website Redesign (Alice requesting)
 CALL AttachFileToProject(@project_website, @file_wireframes, @user_alice); -- wireframes.png to Website Redesign (Alice requesting)
@@ -194,6 +188,12 @@ CALL AttachFileToTask(@task_testing, @file_test_plan, @user_david); -- test_plan
 CALL AttachFileToTask(@task_architecture, @file_api_docs, @user_carol); -- api_documentation.docx to App Architecture task (Carol requesting)
 CALL AttachFileToTask(@task_ios, @file_mockups, @user_carol); -- app_mockups.jpg to iOS Development task (Carol requesting)
 CALL AttachFileToTask(@task_schema, @file_db_diagram, @user_bob); -- database_diagram.png to Schema Analysis task (Bob requesting)
+
+-- Test DownloadFile procedure
+SELECT 'Download test for project_requirements.pdf:' AS info;
+CALL DownloadFile(@file_requirements, @user_alice);
+CALL DownloadFile(@file_wireframes, @user_carol);
+CALL DownloadFile(@file_db_diagram, @user_bob);
 
 -- Test GetTaskFilenames procedure
 CALL GetTaskFilenames(@task_ui_ux);

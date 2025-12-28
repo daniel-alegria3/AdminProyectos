@@ -47,6 +47,7 @@ router.get( '/project/:project_id/tasks/mine', userAuth.requireLogin, gc.getMyPr
 router.post('/task', userAuth.requireLogin, gc.createTask);
 router.post('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
 router.patch('/task/assign', userAuth.requireLogin, gc.assignUserToTask);
+router.delete('/task/assign', userAuth.requireLogin, gc.UNassignUserToTask);
 router.patch('/task/progress_status', userAuth.requireLogin, gc.updateTaskStatus);
 router.patch('/task/:task_id', userAuth.requireLogin, gc.updateTask);
 router.delete('/task/:task_id', userAuth.requireLogin, gc.deleteTask);
@@ -58,5 +59,6 @@ router.get('/task/:task_id', userAuth.requireLogin, gc.getTaskDetails);
 router.post('/file/to_project', userAuth.requireLogin, gc.uploadProjectFile);
 router.post('/file/to_task', userAuth.requireLogin, gc.uploadTaskFile);
 router.get('/file/:file_id', userAuth.requireLogin, gc.downloadFile);
+router.delete('/file/:file_id', userAuth.requireLogin, gc.deleteFile);
 
 module.exports = router;

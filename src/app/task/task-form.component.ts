@@ -125,7 +125,8 @@ export class TaskFormComponent implements OnChanges, OnInit {
     usuario: NaN,
     usuarioNombre: '',
     archivos: [],
-    proyecto: ''
+    proyecto: '',
+    puedo_editar: false
   };
   
   mensaje = '';
@@ -336,7 +337,7 @@ export class TaskFormComponent implements OnChanges, OnInit {
           this.mensaje = '¡Tarea creada exitosamente!';
           
           if (this.selectedFiles && this.selectedFiles.length > 0 && response.data?.task_id) {
-            this.subirArchivos(response.data.task_id);
+            this.subirArchivos(response.data.task_id, payloadBackend.user_id);
           } else {
             this.finalizarProceso();
           }
@@ -353,9 +354,9 @@ export class TaskFormComponent implements OnChanges, OnInit {
     });
   }
 
-  subirArchivos(taskId: number) {
+  subirArchivos(taskId: number, user_id: number) {
     this.mensaje += ' Subiendo archivos...';
-    this.taskService.uploadTaskFiles(taskId, this.selectedFiles!).subscribe({
+    this.taskService.uploadTaskFiles(taskId, this.selectedFiles!, user_id).subscribe({
       next: () => {
         this.mensaje = '¡Tarea y archivos guardados!';
         this.finalizarProceso();
