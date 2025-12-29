@@ -130,6 +130,12 @@ CALL AssignUserToTask(@task_ui_ux, @user_bob, 'MEMBER', @user_carol); -- Carol r
 -- CALL AssignUserToTask(@task_ios, @user_bob, NULL, @user_carol); -- no update cause no `role` provided
 CALL AssignUserToTask(@task_android, @user_eve, 'MEMBER', @user_eve); -- Eve requesting (updating their own role)
 
+-- Test UNAssignUserToProject procedure
+SELECT 'Testing UNAssignUserToProject procedure:' AS info;
+
+CALL UNAssignUserToProject(@project_website, @user_david, @user_alice); -- Alice (owner) unassigning David from Website Redesign
+CALL UNAssignUserToProject(@project_mobile, @user_eve, @user_bob); -- Bob (owner) unassigning Eve from Mobile App
+
 -- Display captured task IDs for verification
 SELECT 'Captured Task IDs:' AS info;
 SELECT
@@ -260,6 +266,21 @@ SELECT '5. Testing unauthorized project details access (Eve not in project 1):' 
 SELECT '6. Testing unauthorized file attachment (Eve not in UI/UX task):' AS test_info;
 -- This should produce: ERROR 1644 (45000): Only task owners|members can attach files
 -- CALL AttachFileToTask(@task_ui_ux, @file_requirements, @user_eve);
+
+-- Test 7: Try to unassign user as non-owner (should fail)
+SELECT '7. Testing unassign by non-owner (Carol not owner of project 1):' AS test_info;
+-- This should produce: ERROR 1644 (45000): Only project owners can unassign users from tasks
+-- CALL UNAssignUserToProject(@project_website, @user_carol, @user_carol);
+
+-- Test 8: Try to unassign user not in project (should fail)
+SELECT '8. Testing unassign of non-member (Frank not in project 1):' AS test_info;
+-- This should produce: ERROR 1644 (45000): User is not assigned to this project
+-- CALL UNAssignUserToProject(@project_website, @user_frank, @user_alice);
+
+-- Test 9: Try to unassign the project owner (should fail)
+SELECT '9. Testing unassign of project owner (Carol is owner of project 1):' AS test_info;
+-- This should produce: ERROR 1644 (45000): Cannot unassign the project owner
+-- CALL UNAssignUserToProject(@project_website, @user_carol, @user_alice);
 
 SELECT 'NOTE: Error test calls are commented out to allow script completion.' AS info;
 SELECT 'Uncomment individual lines above to test specific error scenarios.' AS info;

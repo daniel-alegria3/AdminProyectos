@@ -368,6 +368,30 @@ const generalController = {
     }
   },
 
+  UNassignUserToProject: async (req, res) => {
+    try {
+      const { project_id, user_id } = req.body;
+
+      if (!user_id) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL UNassignUserToProject(?, ?, ?)', [
+        project_id,
+        user_id,
+        requesting_user_id,
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Usuario desasignado a proyecto exitosamente',
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
   getAllProjects: async (req, res) => {
     try {
       const [rows] = await db.execute('CALL GetAllProjects(?)', [null]);
@@ -590,6 +614,7 @@ const generalController = {
   },
 
   assignUserToTask: async (req, res) => {
+    // Can also update existing user if role provided
     try {
       const { task_id, user_id, role } = req.body;
 
@@ -631,7 +656,7 @@ const generalController = {
 
       res.json({
         success: true,
-        message: 'Usuario asignado a tarea exitosamente',
+        message: 'Usuario desasignado a tarea exitosamente',
       });
     } catch (error) {
       handleError(res, error);
