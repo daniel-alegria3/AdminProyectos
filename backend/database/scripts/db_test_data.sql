@@ -328,6 +328,16 @@ CALL GetProjectDetails(@project_website, @user_alice); -- Alice requesting
 CALL GetProjectDetails(@project_mobile, @user_bob); -- Bob requesting
 CALL GetProjectDetails(@project_database, @user_alice); -- Alice requesting
 
+-- Test DeleteProject procedure (p_requesting_user_id parameter added)
+SELECT 'Testing DeleteProject procedure:' AS info;
+-- Create a temporary project for deletion testing
+CALL CreateProject('(5) Temporary Project for Testing Deletion', 'PRIVATE', 'Algo sobre temp project', '2024-05-01 09:00:00', '2024-05-31 17:00:00', @user_alice); -- Alice as creator
+SET @project_temp = LAST_INSERT_ID();
+
+CALL AssignUserToProject(@project_temp, @user_bob, "MEMBER", @user_alice); -- Assign Bob as member
+-- Delete the temporary project (Alice requesting)
+CALL DeleteProject(@project_temp, @user_alice);
+
 -- Test GetTaskDetails procedure (p_requesting_user_id parameter added)
 SELECT 'Testing GetTaskDetails procedure:' AS info;
 CALL GetTaskDetails(@task_ui_ux, @user_carol); -- Carol requesting

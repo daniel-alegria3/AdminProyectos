@@ -36,6 +36,7 @@ router.post('/project/assign', userAuth.requireLogin, gc.assignUserToProject);
 router.patch('/project/assign', userAuth.requireLogin, gc.assignUserToProject);
 router.delete('/project/assign', userAuth.requireLogin, gc.UNassignUserToProject);
 // router.delete('/project/assign', userAuth.requireLogin, generalController.deleteUserFromProject); // TODO
+router.delete('/project/:project_id', userAuth.requireLogin, gc.deleteProject);
 
 router.get('/project', userAuth.requireLogin, gc.getAllProjects);
 router.get('/project/mine', userAuth.requireLogin, gc.getAllMyProjects);

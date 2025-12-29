@@ -342,6 +342,22 @@ const generalController = {
     }
   },
 
+  deleteProject: async (req, res) => {
+    try {
+      const { project_id } = req.params;
+      const requesting_user_id = req.session.user_id;
+
+      const [rows] = await db.execute('CALL DeleteProject(?, ?)', [project_id, requesting_user_id]);
+
+      res.json({
+        success: true,
+        message: 'Projecto eliminado exitosamente',
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
+
   assignUserToProject: async (req, res) => {
     // Can also update existing user if role provided
     try {

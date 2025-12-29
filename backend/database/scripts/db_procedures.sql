@@ -302,6 +302,33 @@ END; //
 
 --------------------------------------------------------------------------------
 
+CREATE PROCEDURE DeleteProject (
+  in p_project_id int,
+  in p_requesting_user_id int
+)
+BEGIN
+  DECLARE v_role VARCHAR(16);
+
+  -- Check if the user is the project owner or member
+  SELECT role
+    INTO v_role
+    FROM ProjectAssignment
+    WHERE id_project = p_project_id
+    AND id_user = p_requesting_user_id
+    LIMIT 1;
+
+  IF v_role IS NULL OR v_role NOT IN ('OWNER', 'MEMBER') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Only task owners|members can delete a project';
+  END IF;
+
+  -- DELETE FROM ProjectAssignment WHERE id_project = p_project_id;
+  -- DELETE FROM ProjectFile WHERE id_project = p_project_id;
+  DELETE FROM Project WHERE id_project = p_project_id;
+END; //
+
+--------------------------------------------------------------------------------
+
 CREATE PROCEDURE AssignUserToProject(
   in p_project_id int,
   in p_user_id int,
