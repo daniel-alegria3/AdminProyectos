@@ -57,19 +57,49 @@ export class ProjectService {
     });
   }
 
-  updateProject(payload: {
-    project_id: number;
-    title?: string;
-    description?: string;
-    start_date?: string;
-    end_date?: string;
-    visibility?: string; // usamos ARCHIVED para “eliminar”
-  }) {
-    return this.http.patch(`${this.apiUrl}/project`, payload, {
-      headers: this.jsonHeaders(),
-      withCredentials: true,
-    });
-  }
+ updateProject(payload: {
+  project_id: number;
+  title?: string;
+  description?: string;
+  start_date?: string;
+  end_date?: string;
+  visibility?: string; // usamos ARCHIVED para “eliminar”
+}): Observable<ApiResponse<any>> {
+  return this.http.patch<ApiResponse<any>>(`${this.apiUrl}/project`, payload, {
+    headers: this.jsonHeaders(),
+    withCredentials: true,
+  });
+}
+
+deleteProject(project_id: number): Observable<ApiResponse<any>> {
+  // soft delete (archivo/archivado)
+  return this.updateProject({ project_id, visibility: 'ARCHIVED' });
+}
+
+
+// === PROYECTOS ===
+removeUserFromProject(project_id: number, user_id: number) {
+  const url =
+    `${this.apiUrl}/project/assign?project_id=${encodeURIComponent(project_id)}&user_id=${encodeURIComponent(user_id)}`;
+
+  return this.http.delete(url, {
+    headers: this.jsonHeaders(),
+    withCredentials: true,
+  });
+}
+
+
+
+
+
+// === ARCHIVOS ===
+deleteFile(file_id: number) {
+  return this.http.delete(`${this.apiUrl}/file/${file_id}`, {
+    headers: this.jsonHeaders(),
+    withCredentials: true,
+  });
+}
+
 
   assignUserToProject(project_id: number, assigned_user_id: number, role: string = 'MEMBER') {
     return this.http.post(
@@ -98,7 +128,7 @@ export class ProjectService {
     return {
       ...row,
       members: JSON.parse(row.members || '[]').map((m: any) => ({
-        user_id: m.id_user ?? null,
+        user_id: m.id_user ?? m.user_id ?? null,
         name: m.name ?? null,
         email: m.email ?? null,
         role: m.role ?? null

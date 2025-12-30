@@ -5,6 +5,7 @@ import { ProjectService } from './project.service';
 
 type TabKey = 'datos' | 'miembros' | 'archivos';
 
+
 @Component({
   selector: 'edit-project',
   standalone: true,
@@ -48,6 +49,8 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
           </div>
 
           <div class="ep-actions">
+            <button type="button" class="btn btn-outline" (click)="deleteProject()" [disabled]="saving">Eliminar proyecto</button>
+
             <button type="button" class="btn btn-ghost" (click)="close()">Cancelar</button>
             <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
           </div>
@@ -60,7 +63,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
           <div class="ep-subheader">
             <div>
               <h3>Miembros del proyecto</h3>
-              <p class="hint">Puedes <b>asignar</b> nuevos miembros. (Quitar miembros requiere endpoint backend)</p>
+              <p class="hint">Puedes <b>asignar</b> nuevos miembros.</p>
             </div>
             <div>
               <button class="btn btn-outline" (click)="refreshMembers()">Actualizar</button>
@@ -69,9 +72,16 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
 
           <div class="chips" *ngIf="members?.length; else noMembers">
             <span class="chip" *ngFor="let m of members">
-              👤 {{ m.name || m.email || ('ID ' + (m.user_id ?? '')) }}
-              <small *ngIf="m.role" class="role">· {{ m.role }}</small>
-            </span>
+            👤 {{ m.name || m.email || ('ID ' + (m.user_id ?? '')) }}
+            <small *ngIf="m.role" class="role">· {{ m.role }}</small>
+
+            <button class="chip-x"
+                    (click)="removeMember(m); $event.stopPropagation()"
+                    title="Quitar del proyecto">
+              ✕
+            </button>
+          </span>
+
           </div>
           <ng-template #noMembers><p class="ep-note">Este proyecto aún no tiene miembros asignados.</p></ng-template>
 
@@ -90,6 +100,8 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
           </div>
 
           <div class="ep-actions">
+
+
             <button class="btn btn-primary" (click)="assignSelected()" [disabled]="assigning || pendingAssign.size===0">
               {{ assigning ? 'Asignando…' : 'Asignar seleccionados' }}
             </button>
@@ -110,7 +122,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
               <div class="file-name">📎 {{ f.filename || f.name }}</div>
               <div class="file-actions">
                 <a [href]="fileUrl(f.file_id)" target="_blank" rel="noopener">Descargar</a>
-                <button class="btn btn-ghost" disabled title="Eliminar requiere endpoint backend">Eliminar</button>
+                <button class="btn btn-ghost" (click)="deleteProjectFile(f)">Eliminar</button>
               </div>
             </div>
           </div>
@@ -125,6 +137,7 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
           </div>
 
           <div class="ep-actions">
+
             <button class="btn btn-primary" (click)="upload()" [disabled]="!filesToUpload || uploading">
               {{ uploading ? 'Subiendo…' : 'Subir' }}
             </button>
@@ -166,6 +179,17 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{background:#f6f7fb;border:1px solid #eceff5;border-radius:999px;padding:6px 10px;color:#17223b;font-weight:600}
   .chip .role{font-weight:500;color:#64748b}
+  
+  .chip{position:relative; padding-right:28px;}
+  .chip-x{
+    position:absolute; right:6px; top:50%;
+    transform:translateY(-50%);
+    border:0; background:transparent;
+    cursor:pointer; font-weight:800;
+    color:#64748b;
+  }
+  .chip-x:hover{color:#ef4444;}
+
 
   .user-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
   .user-item{display:flex;align-items:center;gap:8px;border:1px solid #eceff5;border-radius:10px;padding:6px 8px}
@@ -192,6 +216,9 @@ type TabKey = 'datos' | 'miembros' | 'archivos';
   .sep{border:0;border-top:1px solid #eceff5;margin:6px 0}
   `]
 })
+
+
+
 export class EditProjectComponent implements OnInit {
   @Input() project_id!: number;
   @Input() initialTitle = '';
@@ -229,6 +256,10 @@ export class EditProjectComponent implements OnInit {
     private projects: ProjectService,
     private cdr: ChangeDetectorRef
   ) {}
+
+private apiErrorMessage(err: any, fallback: string) {
+  return err?.error?.message || err?.error?.error || err?.message || fallback;
+}
 
   ngOnInit() {
     this.title = this.initialTitle;
@@ -294,6 +325,96 @@ export class EditProjectComponent implements OnInit {
   }
 
   // ---- DATOS
+
+  removeMember(m: any) {
+  const userId = m?.user_id;
+  if (!userId) return;
+
+  const ok = confirm(`¿Quitar a "${m.name || m.email || 'este usuario'}" del proyecto?`);
+  if (!ok) return;
+
+  this.assigning = true;
+  this.msgAssign = '';
+  this.okAssign = false;
+  this.cdr.markForCheck();
+
+  this.projects.removeUserFromProject(this.project_id, userId).subscribe({
+    next: (r: any) => {
+      this.assigning = false;
+      this.okAssign = true;
+      this.msgAssign = r?.message || 'Usuario removido del proyecto';
+      this.cdr.markForCheck();
+      this.refreshMembers();
+    },
+    error: (err: any) => {
+      this.assigning = false;
+      this.okAssign = false;
+      this.msgAssign = this.apiErrorMessage(err, 'No se pudo quitar al miembro');
+      this.cdr.markForCheck();
+    }
+  });
+}
+
+  deleteProjectFile(f: any) {
+  const id = f?.file_id;
+  if (!id) return;
+
+  const ok = confirm(`¿Eliminar el archivo "${f.filename || f.name || 'archivo'}"?`);
+  if (!ok) return;
+
+  this.uploading = true;
+  this.msgUpload = '';
+  this.okUpload = false;
+  this.cdr.markForCheck();
+
+  this.projects.deleteFile(id).subscribe({
+    next: (r: any) => {
+      this.uploading = false;
+      this.okUpload = true;
+      this.msgUpload = r?.message || 'Archivo eliminado';
+      this.cdr.markForCheck();
+      this.refreshFiles();
+    },
+    error: (err: any) => {
+      this.uploading = false;
+      this.okUpload = false;
+      this.msgUpload = this.apiErrorMessage(err, 'No se pudo eliminar el archivo');
+      this.cdr.markForCheck();
+    }
+  });
+}
+
+
+  deleteProject() {
+  const ok = confirm('¿Seguro que deseas eliminar (archivar) este proyecto?');
+  if (!ok) return;
+
+  this.saving = true;
+  this.msg = '';
+  this.ok = false;
+  this.cdr.markForCheck();
+
+  this.projects.deleteProject(this.project_id).subscribe({
+    next: (r:any) => {
+      this.saving = false;
+      if (r?.success) {
+        this.ok = true;
+        this.msg = 'Proyecto eliminado (archivado)';
+        this.saved.emit();
+        this.close();
+      } else {
+        this.msg = r?.message || 'No se pudo eliminar';
+      }
+      this.cdr.markForCheck();
+    },
+    error: (err: any) => {
+      this.saving = false;
+      this.ok = false;
+      this.msg = this.apiErrorMessage(err, 'Error al eliminar proyecto');
+      this.cdr.markForCheck();
+    }
+  });
+}
   saveDatos() {
     this.saving = true;
     this.msg = '';
@@ -321,11 +442,13 @@ export class EditProjectComponent implements OnInit {
         }
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err: any) => {
         this.saving = false;
-        this.msg = 'Error al actualizar';
+        this.msg = this.apiErrorMessage(err, 'Error al actualizar');
+        this.ok = false;
         this.cdr.markForCheck();
       }
+
     });
   }
 
@@ -337,37 +460,44 @@ export class EditProjectComponent implements OnInit {
   }
 
   assignSelected() {
-    if (this.pendingAssign.size === 0) return;
-    this.assigning = true;
-    this.msgAssign = '';
-    this.okAssign = false;
-    this.cdr.markForCheck();
+  if (this.pendingAssign.size === 0) return;
 
-    const ids = Array.from(this.pendingAssign);
-    let done = 0, failed = 0;
+  this.assigning = true;
+  this.msgAssign = '';
+  this.okAssign = false;
+  this.cdr.markForCheck();
 
-    const check = () => {
-      if (done + failed === ids.length) {
-        this.assigning = false;
-        this.okAssign = failed === 0;
-        this.msgAssign = failed === 0
-          ? 'Usuarios asignados correctamente'
-          : `Asignados con errores (fallas: ${failed})`;
-        this.pendingAssign.clear();
-        this.cdr.markForCheck();
-        this.refreshMembers();
+  const ids = Array.from(this.pendingAssign);
+  let done = 0, failed = 0;
+  let lastErrMsg = '';
+
+  const check = () => {
+    if (done + failed === ids.length) {
+      this.assigning = false;
+      this.okAssign = failed === 0;
+
+      this.msgAssign = failed === 0
+        ? 'Usuarios asignados correctamente'
+        : (lastErrMsg || `Asignados con errores (fallas: ${failed})`);
+
+      this.pendingAssign.clear();
+      this.cdr.markForCheck();
+      this.refreshMembers();
+    }
+  };
+
+  ids.forEach(uid => {
+    this.projects.assignUserToProject(this.project_id, uid, 'MEMBER').subscribe({
+      next: () => { done++; check(); },
+      error: (err: any) => {
+        failed++;
+        lastErrMsg = this.apiErrorMessage(err, 'Error al asignar');
+        check();
       }
-    };
-    
-    ids.forEach(uid => {
-      this.projects.assignUserToProject(this.project_id, uid, 'MEMBER').subscribe({
-        next: () => { done++; check(); },
-        error: () => { failed++; check(); }
-      });
     });
+  });
+}
 
-    
-  }
 
   refreshMembers() {
     this.projects.getProjectDetails(this.project_id).subscribe({
@@ -404,11 +534,13 @@ export class EditProjectComponent implements OnInit {
         this.cdr.markForCheck();
         this.refreshFiles();
       },
-      error: () => {
+      error: (err: any) => {
         this.uploading = false;
-        this.msgUpload = 'Error al subir archivos';
+        this.okUpload = false;
+        this.msgUpload = this.apiErrorMessage(err, 'Error al subir archivos');
         this.cdr.markForCheck();
       }
+
     });
   }
 
@@ -429,3 +561,5 @@ export class EditProjectComponent implements OnInit {
 
   close(){ this.closed.emit(); }
 }
+
+

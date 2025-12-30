@@ -1,4 +1,12 @@
-import { Component, Input, OnInit, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  Output,
+  EventEmitter,
+  ChangeDetectorRef,
+  ChangeDetectionStrategy
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ProjectService } from './project.service';
@@ -37,12 +45,24 @@ import { ProjectService } from './project.service';
         <!-- Miembros -->
         <section class="pd-section">
           <h3>Miembros</h3>
+
           <div class="chips" *ngIf="members?.length; else noMembers">
-            <span class="chip" *ngFor="let m of members">
+            <span class="chip" *ngFor="let m of members" (click)="$event.stopPropagation()">
               👤 {{ m.name || m.email || ('ID ' + (m.user_id ?? '')) }}
               <small *ngIf="m.role" class="role">· {{ m.role }}</small>
+
+              <button
+                type="button"
+                class="chip-x"
+                (click)="removeMember(m); $event.stopPropagation()"
+                title="Quitar del proyecto">
+                ✕
+              </button>
             </span>
           </div>
+
+          <div class="pd-msg" [class.ok]="okRemove" *ngIf="msgRemove">{{ msgRemove }}</div>
+
           <ng-template #noMembers>
             <p class="pd-note">Este proyecto aún no tiene miembros asignados.</p>
           </ng-template>
@@ -51,14 +71,19 @@ import { ProjectService } from './project.service';
         <!-- Archivos -->
         <section class="pd-section">
           <h3>Archivos</h3>
+
           <div class="files" *ngIf="files?.length; else noFiles">
             <div class="file" *ngFor="let f of files">
               <div class="file-name">📎 {{ f.filename || f.name }}</div>
               <div class="file-actions">
                 <a [href]="fileUrl(f.file_id)" target="_blank" rel="noopener">Descargar</a>
+                <button type="button" class="btn btn-ghost" (click)="deleteProjectFile(f)">Eliminar</button>
               </div>
             </div>
           </div>
+
+          <div class="pd-msg" [class.ok]="okFile" *ngIf="msgFile">{{ msgFile }}</div>
+
           <ng-template #noFiles>
             <p class="pd-note">Sin archivos adjuntos.</p>
           </ng-template>
@@ -87,18 +112,40 @@ import { ProjectService } from './project.service';
   .pd-kv .v{display:block;font-weight:600;color:#17223b}
   .pd-actions{display:flex;gap:8px;justify-content:flex-end}
   .pd-note{font-size:13px;color:#334155}
+
+  .pd-msg{font-size:13px;color:#334155}
+  .pd-msg.ok{color:#1f6ed4}
+
   .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{background:#f6f7fb;border:1px solid #eceff5;border-radius:999px;padding:6px 10px;color:#17223b;font-weight:600}
+  .chip{
+    background:#f6f7fb;border:1px solid #eceff5;border-radius:999px;
+    padding:6px 28px 6px 10px;color:#17223b;font-weight:600;
+    position:relative;
+  }
   .chip .role{font-weight:500;color:#64748b}
+
+  .chip-x{
+    position:absolute; right:6px; top:50%;
+    transform:translateY(-50%);
+    border:0; background:transparent;
+    cursor:pointer; font-weight:800;
+    color:#64748b;
+  }
+  .chip-x:hover{color:#ef4444}
+
   .files{display:grid;gap:8px}
   .file{display:flex;align-items:center;justify-content:space-between;border:1px solid #eceff5;border-radius:10px;padding:8px 10px}
   .file-name{color:#17223b;font-weight:600}
+  .file-actions{display:flex;align-items:center;gap:10px}
   .file-actions a{color:#1f6ed4;text-decoration:none}
   .file-actions a:hover{text-decoration:underline}
+
   .pd-loading{padding:18px;color:#334155}
   .btn{border:0;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
   .btn-outline{background:#fff;border:1px solid #aedaff;color:#1f6ed4}
   .btn-outline:hover{background:#d7ebff}
+  .btn-ghost{background:#f6f7fb;color:#17223b}
+  .btn-ghost:hover{background:#eaf4ff}
   `]
 })
 export class ProjectDetailComponent implements OnInit {
@@ -109,6 +156,12 @@ export class ProjectDetailComponent implements OnInit {
   details: any = null;
   members: any[] = [];
   files: any[] = [];
+
+  msgRemove = '';
+  okRemove = false;
+
+  msgFile = '';
+  okFile = false;
 
   constructor(
     private svc: ProjectService,
@@ -121,12 +174,16 @@ export class ProjectDetailComponent implements OnInit {
     this.fetch();
   }
 
+  private apiErrorMessage(err: any, fallback: string) {
+    return err?.error?.message || err?.error?.error || err?.message || fallback;
+  }
+
   fetch() {
     this.loading = true;
     this.cdr.markForCheck();
 
     this.svc.getProjectDetails(this.project_id).subscribe({
-      next: (r:any) => {
+      next: (r: any) => {
         const parsed = this.svc.parseProjectDetailsResponse(r);
         this.details = {
           title: parsed.title ?? null,
@@ -134,8 +191,8 @@ export class ProjectDetailComponent implements OnInit {
           end_date: parsed.end_date ?? null,
           visibility: parsed.visibility ?? null
         };
-        this.members = parsed.members;
-        this.files = parsed.files;
+        this.members = parsed.members || [];
+        this.files = parsed.files || [];
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -146,8 +203,59 @@ export class ProjectDetailComponent implements OnInit {
     });
   }
 
+  removeMember(m: any) {
+    const userId = m?.user_id;
+    if (!userId) return;
+
+    const ok = confirm(`¿Quitar a "${m.name || m.email || 'este usuario'}" del proyecto?`);
+    if (!ok) return;
+
+    this.msgRemove = '';
+    this.okRemove = false;
+    this.cdr.markForCheck();
+
+    this.svc.removeUserFromProject(this.project_id, userId).subscribe({
+      next: (r: any) => {
+        this.okRemove = true;
+        this.msgRemove = r?.message || 'Usuario removido del proyecto';
+        this.cdr.markForCheck();
+        this.fetch();
+      },
+      error: (err: any) => {
+        this.okRemove = false;
+        this.msgRemove = this.apiErrorMessage(err, 'No se pudo quitar al miembro');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  deleteProjectFile(f: any) {
+    const id = f?.file_id;
+    if (!id) return;
+
+    const ok = confirm(`¿Eliminar el archivo "${f.filename || f.name || 'archivo'}"?`);
+    if (!ok) return;
+
+    this.msgFile = '';
+    this.okFile = false;
+    this.cdr.markForCheck();
+
+    this.svc.deleteFile(id).subscribe({
+      next: (r: any) => {
+        this.okFile = true;
+        this.msgFile = r?.message || 'Archivo eliminado';
+        this.cdr.markForCheck();
+        this.fetch();
+      },
+      error: (err: any) => {
+        this.okFile = false;
+        this.msgFile = this.apiErrorMessage(err, 'No se pudo eliminar el archivo');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
   fileUrl(id: number) { return this.svc.buildFileDownloadUrl(id); }
   goTasks() { this.router.navigate(['/task'], { queryParams: { project_id: this.project_id } }); }
-  close(){ this.closed.emit(); }
+  close() { this.closed.emit(); }
 }
-
