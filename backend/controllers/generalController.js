@@ -101,11 +101,15 @@ const handleError = (res, error) => {
 
   // Catches sql store procedure custom errors
   if (error.sqlState === '45000') {
-    return res.status(409).json({
-      success: false,
-      message: error.sqlMessage,
-    });
-  }
+  const msg = error.sqlMessage || 'Operación no permitida';
+  const isForbidden = /propietario|owner|permiso|no autorizado|forbidden/i.test(msg);
+
+  return res.status(isForbidden ? 403 : 409).json({
+    success: false,
+    message: msg,
+  });
+}
+
 
   // Generic error response
   res.status(500).json({
@@ -385,28 +389,39 @@ const generalController = {
   },
 
   UNassignUserToProject: async (req, res) => {
-    try {
-      const { project_id, user_id } = req.body;
+  try {
+    const project_id_raw = req.body?.project_id ?? req.query?.project_id;
+    const user_id_raw = req.body?.user_id ?? req.query?.user_id;
 
-      if (!user_id) {
-        return res.status(400).json({ error: 'User ID is required' });
-      }
-      const requesting_user_id = req.session.user_id;
+    const project_id = parseInt(project_id_raw, 10);
+    const user_id = parseInt(user_id_raw, 10);
 
-      const [rows] = await db.execute('CALL UNassignUserToProject(?, ?, ?)', [
-        project_id,
-        user_id,
-        requesting_user_id,
-      ]);
-
-      res.json({
-        success: true,
-        message: 'Usuario desasignado a proyecto exitosamente',
+    if (!Number.isFinite(project_id) || !Number.isFinite(user_id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'project_id y user_id son requeridos (numéricos)',
       });
-    } catch (error) {
-      handleError(res, error);
     }
-  },
+
+    const requesting_user_id = req.session.user_id;
+
+    await db.execute('CALL UNassignUserToProject(?, ?, ?)', [
+      project_id,
+      user_id,
+      requesting_user_id,
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Usuario desasignado a proyecto exitosamente',
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+},
+
+
+
 
   getAllProjects: async (req, res) => {
     try {
