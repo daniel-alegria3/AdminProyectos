@@ -3,9 +3,9 @@ import { Routes } from '@angular/router';
 import { Auth } from './auth/auth';
 import { Task } from '@/task/task';
 import { BackendTest } from './backend-test/backend-test';
-import { authGuard, guestGuard } from '@/auth/auth.guard';
+import { authGuard, guestGuard, adminGuard } from '@/auth/auth.guard';
 import { TaskDetailComponent } from './task/task-detail/task-detail';
- 
+
 export const routes: Routes = [
   { path: 'task/:id', component: TaskDetailComponent, canActivate: [authGuard] },
   { path: 'auth', component: Auth, canActivate: [guestGuard] },
@@ -20,7 +20,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     loadChildren: () => import('./admin/admin.routes').then((m) => m.adminRoutes),
-    // canActivate: [AdminGuard], // TODO
+    canActivate: [adminGuard],
   },
 
   { path: '', redirectTo: '/projects', pathMatch: 'full' },

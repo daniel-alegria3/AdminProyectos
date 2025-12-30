@@ -147,7 +147,7 @@ userAuth.requireAdmin = (req, res, next) => {
 
 userAuth.isLoggedIn = (req, res) => {
   if (req.session[PRIMARY_KEY]) {
-    res.json({ success: true });
+    res.json({ success: true, data: { user_id: req.session[PRIMARY_KEY], is_admin: req.session['is_admin'] }});
   } else {
     res.json({ success: false });
   }
