@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Tarea } from './models';
@@ -13,11 +13,11 @@ import { TaskService } from './task.service';
       <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="form-container">
           <div class="form-header">
-            <h2>{{ modoEdicion ? 'Editar Tarea' : 'Crear Tarea' }}</h2>
+            <h2>Crear Tarea</h2>
             <button type="button" class="btn-cerrar" (click)="cerrar()">✕</button>
           </div>
 
-          <form (ngSubmit)="guardarTarea()" #form="ngForm">
+          <form (ngSubmit)="crearTarea()" #form="ngForm">
             <div class="form-group">
               <label>Título:</label>
               <input type="text" name="titulo" [(ngModel)]="tarea.titulo" required placeholder="Ej: Revisión de base de datos">
@@ -34,7 +34,7 @@ import { TaskService } from './task.service';
               <label>Fecha Fin:</label>
               <input type="date" name="fechaFin" [(ngModel)]="tarea.fechaFin" required>
             </div>
-            <div class="form-group" *ngIf="!modoEdicion">
+            <div class="form-group">
               <label>Usuario Asignado:</label>
               <div class="user-selector-container">
                 <input type="text" name="usuario" [(ngModel)]="usuarioActual" readonly placeholder="Seleccione un usuario" (click)="mostrarSelectorUsuario = !mostrarSelectorUsuario">
@@ -53,12 +53,12 @@ import { TaskService } from './task.service';
                 </div>
               </div>
             </div>
-            <div class="form-group" *ngIf="!modoEdicion">
+            <div class="form-group">
               <label>Archivos:</label>
               <input type="file" name="archivos" (change)="onFileChange($event)" multiple accept=".pdf,.doc,.docx,.jpg,.png">
             </div>
             <button type="submit" class="btn" [disabled]="loading">
-              {{ loading ? (modoEdicion ? 'Guardando...' : 'Creando...') : (modoEdicion ? 'Guardar Cambios' : 'Crear Tarea') }}
+              {{ loading ? 'Creando...' : 'Crear Tarea' }}
             </button>
           </form>
           <div *ngIf="mensaje" class="success-message" [ngClass]="{'error-msg': mensaje.includes('Error')}">
@@ -108,14 +108,10 @@ import { TaskService } from './task.service';
     .error-msg { background-color: #f8d7da; color: #721c24; }
   `]
 })
-export class TaskFormComponent implements OnChanges, OnInit {
+export class TaskFormComponent implements OnChanges {
   @Input() projectId: number | string | null = null;
-  @Input() tareaEditar: Tarea | null = null; // Nueva propiedad para modo edición
   @Output() cerrarFormulario = new EventEmitter<void>();
   @Output() tareaCreada = new EventEmitter<void>();
-  @Output() tareaActualizada = new EventEmitter<void>(); // Nuevo evento
-
-  modoEdicion = false;
 
   tarea: Tarea = {
     titulo: '',
@@ -125,8 +121,7 @@ export class TaskFormComponent implements OnChanges, OnInit {
     usuario: NaN,
     usuarioNombre: '',
     archivos: [],
-    proyecto: '',
-    puedo_editar: false
+    proyecto: ''
   };
   
   mensaje = '';
@@ -138,88 +133,11 @@ export class TaskFormComponent implements OnChanges, OnInit {
 
   constructor(private taskService: TaskService) {}
 
-  ngOnInit() {
-    // Si viene una tarea para editar, entramos en modo edición
-    if (this.tareaEditar) {
-      this.modoEdicion = true;
-      this.tarea = { ...this.tareaEditar };
-      // Formatear fechas para el input date (YYYY-MM-DD)
-      if (this.tarea.fechaInicio) {
-        this.tarea.fechaInicio = this.formatearFecha(this.tarea.fechaInicio);
-      }
-      if (this.tarea.fechaFin) {
-        this.tarea.fechaFin = this.formatearFecha(this.tarea.fechaFin);
-      }
-    }
-  }
-
-  formatearFecha(fecha: string): string {
-    const d = new Date(fecha);
-    if (isNaN(d.getTime())) return fecha;
-    return d.toISOString().split('T')[0];
-  }
-
   ngOnChanges(changes: SimpleChanges) {
     if (changes['projectId'] && this.projectId) {
       console.log('🔄 Detectado cambio de Proyecto ID:', this.projectId);
       this.cargarUsuarios();
     }
-    if (changes['tareaEditar'] && this.tareaEditar) {
-      this.modoEdicion = true;
-      this.tarea = { ...this.tareaEditar };
-      if (this.tarea.fechaInicio) {
-        this.tarea.fechaInicio = this.formatearFecha(this.tarea.fechaInicio);
-      }
-      if (this.tarea.fechaFin) {
-        this.tarea.fechaFin = this.formatearFecha(this.tarea.fechaFin);
-      }
-    }
-  }
-
-  guardarTarea() {
-    if (this.modoEdicion) {
-      this.actualizarTarea();
-    } else {
-      this.crearTarea();
-    }
-  }
-
-  actualizarTarea() {
-    if (!this.tarea.id) {
-      this.mensaje = 'Error: No se puede actualizar sin ID de tarea';
-      return;
-    }
-
-    this.loading = true;
-    this.mensaje = '';
-
-    const payload = {
-      title: this.tarea.titulo,
-      description: this.tarea.descripcion,
-      start_date: this.tarea.fechaInicio,
-      end_date: this.tarea.fechaFin
-    };
-
-    this.taskService.updateTask(this.tarea.id, payload).subscribe({
-      next: (response) => {
-        if (response?.success) {
-          this.mensaje = '¡Tarea actualizada exitosamente!';
-          this.loading = false;
-          setTimeout(() => {
-            this.tareaActualizada.emit();
-            this.cerrar();
-          }, 1500);
-        } else {
-          this.mensaje = 'Error al actualizar: ' + (response.message || 'Desconocido');
-          this.loading = false;
-        }
-      },
-      error: (error) => {
-        console.error('Error:', error);
-        this.mensaje = 'Error de conexión con el servidor.';
-        this.loading = false;
-      }
-    });
   }
 
   cargarUsuarios() {
@@ -337,7 +255,7 @@ export class TaskFormComponent implements OnChanges, OnInit {
           this.mensaje = '¡Tarea creada exitosamente!';
           
           if (this.selectedFiles && this.selectedFiles.length > 0 && response.data?.task_id) {
-            this.subirArchivos(response.data.task_id, payloadBackend.user_id);
+            this.subirArchivos(response.data.task_id);
           } else {
             this.finalizarProceso();
           }
@@ -354,9 +272,9 @@ export class TaskFormComponent implements OnChanges, OnInit {
     });
   }
 
-  subirArchivos(taskId: number, user_id: number) {
+  subirArchivos(taskId: number) {
     this.mensaje += ' Subiendo archivos...';
-    this.taskService.uploadTaskFiles(taskId, this.selectedFiles!, user_id).subscribe({
+    this.taskService.uploadTaskFiles(taskId, this.selectedFiles!).subscribe({
       next: () => {
         this.mensaje = '¡Tarea y archivos guardados!';
         this.finalizarProceso();
