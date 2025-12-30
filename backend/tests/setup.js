@@ -1,9 +1,10 @@
-// Increase timeout for database operations
-jest.setTimeout(10000);
+// Jest setup file
+// Global test configuration and hooks
 
-// Mock console methods to reduce noise during tests
-global.console = {
-  ...console,
-  error: jest.fn(),
-  warn: jest.fn(),
-};
+// Increase timeout for integration tests
+jest.setTimeout(30000);
+
+// Optional: Add global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
