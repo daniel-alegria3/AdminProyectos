@@ -79,12 +79,12 @@ deleteProject(project_id: number): Observable<ApiResponse<any>> {
 
 // === PROYECTOS ===
 removeUserFromProject(project_id: number, user_id: number) {
-  const url =
-    `${this.apiUrl}/project/assign?project_id=${encodeURIComponent(project_id)}&user_id=${encodeURIComponent(user_id)}`;
+  const url = `${this.apiUrl}/project/assign`;
 
   return this.http.delete(url, {
     headers: this.jsonHeaders(),
     withCredentials: true,
+    body: { project_id, user_id }
   });
 }
 
