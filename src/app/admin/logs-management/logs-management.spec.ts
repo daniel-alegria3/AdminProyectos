@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { LogsManagement } from './logs-management';
 
 describe('LogsManagement', () => {
@@ -7,7 +8,7 @@ describe('LogsManagement', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LogsManagement]
+      imports: [LogsManagement, HttpClientTestingModule]
     }).compileComponents();
 
     fixture = TestBed.createComponent(LogsManagement);
