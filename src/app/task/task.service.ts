@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, forkJoin } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Tarea, Archivo, Miembro } from './models'; // Asegúrate que Miembro y Archivo estén exportados en models.ts
 
@@ -83,9 +83,7 @@ export class TaskService {
               tipo: (['pdf', 'doc', 'docx', 'jpg'].includes(ext)) ? ext : 'otro',
               url: '' 
             };
-          }),
-
-          puedo_editar: tareaRaw.can_edit
+          })
         };
 
         return tareaTraducida;
@@ -135,49 +133,29 @@ export class TaskService {
   deleteTask(taskId: number): Observable<any> {
     // Asegúrate de que tu backend tenga esta ruta, o usa la lógica que corresponda
     // Si usas procedimientos almacenados, podría ser un POST a /task/delete
-    return this.http.delete(`${this.apiUrl}/task/${taskId}`, { withCredentials: true });
+    return this.http.delete<any>(`${this.apiUrl}/task/${taskId}`, { withCredentials: true });
   }
 
   createTask(tarea: Partial<Tarea>): Observable<any> {
-    return this.http.post(`${this.apiUrl}/task`, tarea, { 
+    // Si viene con campos en inglés (desde task-form), usarlos directamente
+    // Si viene con campos en español, traducirlos
+    const taskData = {
+      project_id: (tarea as any).project_id || (tarea as any).proyecto_id,
+      title: (tarea as any).title || tarea.titulo,
+      description: (tarea as any).description || tarea.descripcion || '',
+      start_date: (tarea as any).start_date || tarea.fechaInicio,
+      end_date: (tarea as any).end_date || tarea.fechaFin,
+      user_id: (tarea as any).user_id || tarea.usuario,
+      role: (tarea as any).role || 'MEMBER'
+    };
+
+    console.log('📤 [TaskService] createTask - Enviando:', taskData);
+
+    return this.http.post(`${this.apiUrl}/task`, taskData, { 
       headers: this.getHeaders(),
       withCredentials: true 
     });
   }
-
-  /// TODO: Nuevo, integrar al frontend
-  createTaskAssignation(task_id: number, users: { user_id: number; role: string }[]) {
-    for (const user of users) {
-      this.http.post(
-        `${this.apiUrl}/task/assign`,
-        {
-          task_id,
-          user_id: user.user_id,
-          role: user.role,
-        },
-        {
-          headers: this.getHeaders(),
-          withCredentials: true,
-        }
-      ).subscribe();
-    }
-  }
-
-  deleteTaskAssignation(task_id: number, user_id: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/task/assign`, {
-      headers: this.getHeaders(),
-      withCredentials: true,
-      body: {task_id, user_id}
-    });
-  }
-
-  deleteFile(file_id: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/file/${file_id}`, {
-      headers: this.getHeaders(),
-      withCredentials: true,
-    });
-  }
-  /// END TODO
 
   updateTaskStatus(taskId: number, status: string): Observable<any> {
     return this.http.patch(`${this.apiUrl}/task/progress_status`, 
@@ -189,23 +167,13 @@ export class TaskService {
     );
   }
 
-  updateTask(taskId: number, taskData: { title?: string; description?: string; start_date?: string; end_date?: string }): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/task/${taskId}`, taskData, {
-      headers: this.getHeaders(),
-      withCredentials: true
-    });
-  }
-
   // ==========================================
   // GESTIÓN DE ARCHIVOS (RF05)
   // ==========================================
 
-  uploadTaskFiles(taskId: number, files: FileList, requesting_user_id: number|null): Observable<any> {
+  uploadTaskFiles(taskId: number, files: FileList): Observable<any> {
     const formData = new FormData();
     formData.append('task_id', taskId.toString());
-    if (requesting_user_id) {
-      formData.append('requesting_user_id', requesting_user_id.toString());
-    }
     
     for (let i = 0; i < files.length; i++) {
       formData.append('files', files[i]);
@@ -221,6 +189,41 @@ export class TaskService {
   downloadFile(fileId: number): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/file/${fileId}`, {
       responseType: 'blob', // Importante para archivos PDF/DOC/JPG
+      withCredentials: true
+    });
+  }
+
+  // ==========================================
+  // MÉTODOS DE ASIGNACIÓN DE MIEMBROS
+  // ==========================================
+
+  createTaskAssignation(task_id: number, users: { user_id: number; role: string }[]): Observable<any[]> {
+    if (!users || users.length === 0) {
+      return of([]);
+    }
+    
+    const peticiones = users.map(user => 
+      this.http.post(
+        `${this.apiUrl}/task/assign`,
+        { task_id, user_id: user.user_id, role: user.role || 'MEMBER' },
+        { headers: this.getHeaders(), withCredentials: true }
+      )
+    );
+    
+    return forkJoin(peticiones);
+  }
+
+  deleteTaskAssignation(task_id: number, user_id: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/task/assign`, {
+      headers: this.getHeaders(),
+      withCredentials: true,
+      body: { task_id, user_id }
+    });
+  }
+
+  deleteFile(file_id: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/file/${file_id}`, {
+      headers: this.getHeaders(),
       withCredentials: true
     });
   }
