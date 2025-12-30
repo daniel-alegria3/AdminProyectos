@@ -1,18 +1,31 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute } from '@angular/router';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 
-import { TaskDetail } from './task-detail';
+import { TaskDetailComponent } from './task-detail';
+import { TaskService } from '@/task/task.service';
 
-describe('TaskDetail', () => {
-  let component: TaskDetail;
-  let fixture: ComponentFixture<TaskDetail>;
+describe('TaskDetailComponent', () => {
+  let component: TaskDetailComponent;
+  let fixture: ComponentFixture<TaskDetailComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TaskDetail]
+      imports: [TaskDetailComponent, HttpClientTestingModule],
+      providers: [
+        TaskService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { paramMap: { get: () => null } }
+          }
+        }
+      ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TaskDetail);
+    fixture = TestBed.createComponent(TaskDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
