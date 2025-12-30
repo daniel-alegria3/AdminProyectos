@@ -33,6 +33,15 @@ export interface ApiResponse<T> {
   data?: T;
 }
 
+export interface Logs {
+  entity_type: 'PROJECT' | 'TASK';
+  entity_id: number;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  id_user: number | null;
+  new_values: Record<string, any> | null;
+  timestamp: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -67,5 +76,9 @@ export class AdminService {
       user_id: userId,
       account_status: accountStatus
     }, { withCredentials: true });
+  }
+
+  getLogs(): Observable<ApiResponse<Logs[]>> {
+    return this.http.get<ApiResponse<Logs[]>>(`${this.API_BASE}/logs`, { withCredentials: true });
   }
 }

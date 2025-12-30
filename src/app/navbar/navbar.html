@@ -2,6 +2,11 @@
 <nav class="navbar">
   <a routerLink="/projects" routerLinkActive="active">Projects</a>
 
+  @if (isAdmin()) {
+    <a routerLink="/admin/users" routerLinkActive="active">Usuarios</a>
+    <a routerLink="/admin/logs" routerLinkActive="active">Logs</a>
+  }
+
   <button (click)="logout()" class="logout-btn">
     Logout
   </button>

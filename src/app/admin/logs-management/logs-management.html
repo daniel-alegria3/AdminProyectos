@@ -1,0 +1,69 @@
+<div class="logs-management-container">
+  <!-- Header -->
+  <div class="header">
+    <h1 class="title">Registros de Actividad</h1>
+    <button class="btn btn-primary" (click)="loadLogs()" [disabled]="loading">
+      <span class="btn-icon">↻</span>
+      Actualizar
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="error" class="alert alert-error">
+    <span class="alert-icon">⚠</span>
+    {{ error }}
+  </div>
+
+  <div *ngIf="success" class="alert alert-success">
+    <span class="alert-icon">✓</span>
+    {{ success }}
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando registros...</p>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="logs-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tipo Entidad</th>
+          <th>ID Entidad</th>
+          <th>Acción</th>
+          <th>Usuario</th>
+          <th>Valores Nuevos</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let log of logs" class="log-row">
+          <td>{{ log.id_user || '-' }}</td>
+          <td>
+            <span class="entity-badge" [ngClass]="getEntityTypeBadgeClass(log.entity_type)">
+              {{ log.entity_type }}
+            </span>
+          </td>
+          <td>{{ log.entity_id }}</td>
+          <td>
+            <span class="action-badge" [ngClass]="getActionBadgeClass(log.action)">
+              {{ getActionText(log.action) }}
+            </span>
+          </td>
+          <td>{{ log.id_user || '-' }}</td>
+          <td class="values-cell" [title]="log.new_values ? JSON.stringify(log.new_values, null, 2) : 'Sin cambios'">
+            <span class="values-text">{{ formatNewValues(log.new_values) }}</span>
+          </td>
+          <td class="timestamp-cell">{{ formatTimestamp(log.timestamp) }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div *ngIf="logs.length === 0" class="empty-state">
+      <p>No hay registros disponibles</p>
+    </div>
+  </div>
+</div>
