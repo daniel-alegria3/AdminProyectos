@@ -117,6 +117,15 @@ export class Auth {
     this.successMessage.set('');
   }
 
+  private async hashPassword(password: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
   onLogin() {
     if (this.loginForm.invalid) {
       this.markFormGroupTouched(this.loginForm);
@@ -126,31 +135,41 @@ export class Auth {
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    this.authService.login(this.loginForm.value).subscribe({
-      next: (response) => {
-        this.isLoading.set(false);
-        if (response.success) {
-          this.successMessage.set(response.message);
+    this.hashPassword(this.loginForm.value.password).then((hashedPassword) => {
+      const loginData = {
+        ...this.loginForm.value,
+        password: hashedPassword,
+      };
 
-          // Service already handles storage and state
-          const isAdmin = response.data?.is_admin || false;
+      this.authService.login(loginData).subscribe({
+        next: (response) => {
+          this.isLoading.set(false);
+          if (response.success) {
+            this.successMessage.set(response.message);
 
-          // Navigate based on user role
-          setTimeout(() => {
-            if (isAdmin) {
-              this.router.navigate(['/admin']);
-            } else {
-              this.router.navigate(['/projects']);
-            }
-          }, 1000);
-        } else {
-          this.errorMessage.set(response.message);
-        }
-      },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.error?.message || 'Login failed. Please try again.');
-      },
+            // Service already handles storage and state
+            const isAdmin = response.data?.is_admin || false;
+
+            // Navigate based on user role
+            setTimeout(() => {
+              if (isAdmin) {
+                this.router.navigate(['/admin']);
+              } else {
+                this.router.navigate(['/projects']);
+              }
+            }, 1000);
+          } else {
+            this.errorMessage.set(response.message);
+          }
+        },
+        error: (error) => {
+          this.isLoading.set(false);
+          this.errorMessage.set(error.error?.message || 'Login failed. Please try again.');
+        },
+      });
+    }).catch((err) => {
+      this.isLoading.set(false);
+      this.errorMessage.set('An error occurred during login. Please try again.');
     });
   }
 
@@ -165,24 +184,34 @@ export class Auth {
 
     const { confirmPassword, ...registerData } = this.registerForm.value;
 
-    this.authService.register(registerData).subscribe({
-      next: (response) => {
-        this.isLoading.set(false);
-        if (response.success) {
-          this.successMessage.set(response.message);
-          // Optionally switch to login mode after successful registration
-          setTimeout(() => {
-            this.isLoginMode.set(true);
-            this.registerForm.reset();
-          }, 2000);
-        } else {
-          this.errorMessage.set(response.message);
-        }
-      },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.error?.message || 'Registration failed. Please try again.');
-      },
+    this.hashPassword(registerData.password).then((hashedPassword) => {
+      const hashedRegisterData = {
+        ...registerData,
+        password: hashedPassword,
+      };
+
+      this.authService.register(hashedRegisterData).subscribe({
+        next: (response) => {
+          this.isLoading.set(false);
+          if (response.success) {
+            this.successMessage.set(response.message);
+            // Optionally switch to login mode after successful registration
+            setTimeout(() => {
+              this.isLoginMode.set(true);
+              this.registerForm.reset();
+            }, 2000);
+          } else {
+            this.errorMessage.set(response.message);
+          }
+        },
+        error: (error) => {
+          this.isLoading.set(false);
+          this.errorMessage.set(error.error?.message || 'Registration failed. Please try again.');
+        },
+      });
+    }).catch((err) => {
+      this.isLoading.set(false);
+      this.errorMessage.set('An error occurred during registration. Please try again.');
     });
   }
 
