@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Tarea } from './models';
 import { TaskService } from './task.service';
+import { forkJoin, of } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'task-list',
@@ -101,6 +103,10 @@ import { TaskService } from './task.service';
             </div>
             
             <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" 
+                      (click)="editarTarea(tarea, $event)">
+                ✏️ Editar
+              </button>
               <button class="btn btn-sm btn-outline-primary fw-bold" 
                       (click)="verDetalles(tarea); $event.stopPropagation()">
                 🔍 Ver
@@ -165,8 +171,9 @@ import { TaskService } from './task.service';
 export class TaskListComponent implements OnInit {
   @Input() projectId: string | null = null;
   @Output() abrirFormulario = new EventEmitter<void>();
+  @Output() editarTareaEvent = new EventEmitter<Tarea>();
 
-  tareas: Tarea[] = []; // Usamos la interfaz Tarea
+  tareas: Tarea[] = [];
   filtroUsuario: string = '';
   loading = false;
   
@@ -174,7 +181,7 @@ export class TaskListComponent implements OnInit {
   mostrarConfirmacion = false;
   tareaAEliminar: Tarea | null = null;
   
-  // 🟢 Variable para el Título del Proyecto
+  // Variable para el Título del Proyecto
   nombreProyecto: string = '';
 
   constructor(
@@ -316,17 +323,100 @@ export class TaskListComponent implements OnInit {
   }
 
   confirmarEliminacion() {
-    if (!this.tareaAEliminar?.id) return;
-    this.taskService.deleteTask(this.tareaAEliminar.id).subscribe({
-      next: (res) => {
-        this.tareas = this.tareas.filter(t => t.id !== this.tareaAEliminar!.id);
+    if (!this.tareaAEliminar?.id) {
+      console.error('❌ No hay tarea para eliminar');
+      return;
+    }
+
+    const taskId = this.tareaAEliminar.id;
+    
+    console.log('='.repeat(50));
+    console.log('🟢 INICIANDO ELIMINACIÓN EN CASCADA para tarea:', taskId);
+    console.log('='.repeat(50));
+
+    // PASO 1: Obtener detalles frescos de la tarea
+    console.log('🟢 PASO 1: Obteniendo detalles frescos...');
+    
+    this.taskService.getTaskDetails(taskId).pipe(
+      switchMap((tareaFresca: any) => {
+        console.log('📦 Datos frescos recibidos:', tareaFresca);
+        
+        const miembros = tareaFresca.miembros || [];
+        const archivos = tareaFresca.archivos || [];
+        
+        console.log('👥 Miembros encontrados:', miembros.length);
+        console.log('📁 Archivos encontrados:', archivos.length);
+
+        // PASO 2: Crear operaciones de limpieza
+        const operacionesLimpieza: any[] = [];
+
+        // Eliminar asignaciones de miembros
+        miembros.forEach((m: any) => {
+          if (m.id && m.id > 0) {
+            operacionesLimpieza.push(
+              this.taskService.deleteTaskAssignation(taskId, m.id).pipe(
+                catchError(err => {
+                  console.warn(`⚠️ Error eliminando miembro ${m.id}:`, err);
+                  return of({ error: true });
+                })
+              )
+            );
+          }
+        });
+
+        // Eliminar archivos
+        archivos.forEach((f: any) => {
+          if (f.id && f.id > 0) {
+            operacionesLimpieza.push(
+              this.taskService.deleteFile(f.id).pipe(
+                catchError(err => {
+                  console.warn(`⚠️ Error eliminando archivo ${f.id}:`, err);
+                  return of({ error: true });
+                })
+              )
+            );
+          }
+        });
+
+        // PASO 3: Ejecutar limpieza
+        console.log(`🟢 PASO 2: Ejecutando ${operacionesLimpieza.length} operaciones de limpieza...`);
+        
+        if (operacionesLimpieza.length === 0) {
+          return of([]);
+        }
+        
+        return forkJoin(operacionesLimpieza);
+      }),
+      // PASO 4: Eliminar la tarea
+      switchMap(() => {
+        console.log('🟢 PASO 3: Eliminando tarea principal...');
+        return this.taskService.deleteTask(taskId).pipe(
+          catchError(err => {
+            console.error('❌ Error eliminando tarea:', err);
+            throw err;
+          })
+        );
+      })
+    ).subscribe({
+      next: () => {
+        console.log('✅ TAREA ELIMINADA EXITOSAMENTE');
+        this.tareas = this.tareas.filter(t => t.id !== taskId);
         this.cancelarEliminacion();
         this.cd.detectChanges();
       },
-      error: () => {
-          alert('Error eliminando tarea');
-          this.cancelarEliminacion();
+      error: (err) => {
+        console.error('❌ ERROR eliminando tarea:', err);
+        alert('Error eliminando tarea. Verifica la consola.');
+        this.cancelarEliminacion();
+        this.cd.detectChanges();
       }
     });
+  }
+
+  // Método para editar tarea (emite evento al padre)
+  editarTarea(tarea: Tarea, event?: Event) {
+    if (event) event.stopPropagation();
+    console.log('📝 Editando tarea:', tarea);
+    this.editarTareaEvent.emit(tarea);
   }
 }

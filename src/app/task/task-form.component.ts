@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Tarea } from './models';
 import { TaskService } from './task.service';
+import { switchMap, finalize, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'task-form',
@@ -13,11 +15,11 @@ import { TaskService } from './task.service';
       <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="form-container">
           <div class="form-header">
-            <h2>Crear Tarea</h2>
+            <h2>{{ modoEdicion ? 'Editar Tarea' : 'Crear Tarea' }}</h2>
             <button type="button" class="btn-cerrar" (click)="cerrar()">✕</button>
           </div>
 
-          <form (ngSubmit)="crearTarea()" #form="ngForm">
+          <form (ngSubmit)="guardarTarea()" #form="ngForm">
             <div class="form-group">
               <label>Título:</label>
               <input type="text" name="titulo" [(ngModel)]="tarea.titulo" required placeholder="Ej: Revisión de base de datos">
@@ -34,31 +36,31 @@ import { TaskService } from './task.service';
               <label>Fecha Fin:</label>
               <input type="date" name="fechaFin" [(ngModel)]="tarea.fechaFin" required>
             </div>
+            
+            <!-- SELECTOR MÚLTIPLE DE MIEMBROS -->
             <div class="form-group">
-              <label>Usuario Asignado:</label>
-              <div class="user-selector-container">
-                <input type="text" name="usuario" [(ngModel)]="usuarioActual" readonly placeholder="Seleccione un usuario" (click)="mostrarSelectorUsuario = !mostrarSelectorUsuario">
-                <button type="button" class="user-selector-btn" (click)="mostrarSelectorUsuario = !mostrarSelectorUsuario">
-                  👤
-                </button>
-                <div class="user-dropdown" *ngIf="mostrarSelectorUsuario">
-                  <div class="user-option"
-                       *ngFor="let usuario of usuariosDisponibles"
-                       (click)="seleccionarUsuario(usuario)">
-                    👤 {{ usuario.name }}
-                  </div>
-                  <div *ngIf="usuariosDisponibles.length === 0" style="padding:10px; color:gray;">
-                    No hay usuarios cargados
-                  </div>
+              <label>Miembros Asignados:</label>
+              <div class="members-container">
+                <div *ngFor="let usuario of usuariosDisponibles" class="member-checkbox">
+                  <input type="checkbox" 
+                         [id]="'member_' + usuario.id"
+                         [checked]="miembrosSeleccionados.includes(usuario.id)"
+                         (change)="toggleMiembro(usuario.id)">
+                  <label [for]="'member_' + usuario.id">👤 {{ usuario.name }}</label>
+                </div>
+                <div *ngIf="usuariosDisponibles.length === 0" class="text-muted small">
+                  No hay miembros disponibles en este proyecto
                 </div>
               </div>
+              <small class="text-muted">Seleccionados: {{ miembrosSeleccionados.length }}</small>
             </div>
+            
             <div class="form-group">
               <label>Archivos:</label>
               <input type="file" name="archivos" (change)="onFileChange($event)" multiple accept=".pdf,.doc,.docx,.jpg,.png">
             </div>
-            <button type="submit" class="btn" [disabled]="loading">
-              {{ loading ? 'Creando...' : 'Crear Tarea' }}
+            <button type="submit" class="btn" [disabled]="loading || miembrosSeleccionados.length === 0">
+              {{ loading ? 'Guardando...' : (modoEdicion ? 'Actualizar Tarea' : 'Crear Tarea') }}
             </button>
           </form>
           <div *ngIf="mensaje" class="success-message" [ngClass]="{'error-msg': mensaje.includes('Error')}">
@@ -77,25 +79,24 @@ import { TaskService } from './task.service';
     .form-group { margin-bottom: 15px; position: relative; }
     .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
     
-    .user-selector-container { position: relative; display: flex; }
-    .user-selector-btn { border: 1px solid #ddd; background: #eee; cursor: pointer; border-left: none; }
-    
-    /* ESTILOS DEL DROPDOWN */
-    .user-dropdown { 
-      position: absolute; 
-      top: 100%; 
-      left: 0; 
-      width: 100%; 
-      background: white; 
-      border: 1px solid #ddd; 
-      border-radius: 4px;
-      max-height: 200px; 
+    .members-container { 
+      max-height: 150px; 
       overflow-y: auto; 
-      z-index: 1000; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      border: 1px solid #ddd; 
+      border-radius: 4px; 
+      padding: 10px; 
+      background: #f9f9f9;
     }
-    .user-option { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
-    .user-option:hover { background-color: #f0f7ff; color: #0056b3; }
+    .member-checkbox { 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      padding: 5px 0; 
+      border-bottom: 1px solid #eee;
+    }
+    .member-checkbox:last-child { border-bottom: none; }
+    .member-checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .member-checkbox label { cursor: pointer; margin: 0; font-weight: normal; }
     
     input[type="text"], textarea, input[type="date"], input[type="file"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
     textarea { height: 100px; resize: vertical; }
@@ -106,10 +107,13 @@ import { TaskService } from './task.service';
     
     .success-message { background-color: #d4edda; color: #155724; padding: 10px; margin-top: 15px; border-radius: 4px; text-align: center; }
     .error-msg { background-color: #f8d7da; color: #721c24; }
+    .text-muted { color: #6c757d; }
+    .small { font-size: 0.875rem; }
   `]
 })
 export class TaskFormComponent implements OnChanges {
   @Input() projectId: number | string | null = null;
+  @Input() tareaEditar: Tarea | null = null;
   @Output() cerrarFormulario = new EventEmitter<void>();
   @Output() tareaCreada = new EventEmitter<void>();
 
@@ -118,29 +122,52 @@ export class TaskFormComponent implements OnChanges {
     descripcion: '',
     fechaInicio: '',
     fechaFin: '',
-    usuario: NaN,
+    usuario: 0,
     usuarioNombre: '',
     archivos: [],
     proyecto: ''
   };
   
   mensaje = '';
-  mostrarSelectorUsuario = false;
-  usuarioActual = '';
   usuariosDisponibles: Array<{ id: number; name: string }> = [];
+  miembrosSeleccionados: number[] = [];
   loading = false;
   selectedFiles: FileList | null = null;
+  modoEdicion = false;
 
-  constructor(private taskService: TaskService) {}
+  constructor(
+    private taskService: TaskService,
+    private cd: ChangeDetectorRef
+  ) {}
 
   ngOnChanges(changes: SimpleChanges) {
+    // Cargar usuarios cuando cambia el proyecto
     if (changes['projectId'] && this.projectId) {
       console.log('🔄 Detectado cambio de Proyecto ID:', this.projectId);
-      this.cargarUsuarios();
+      this.cargarMiembrosDelProyecto();
+    }
+    
+    // Si viene una tarea para editar, rellenar el formulario
+    if (changes['tareaEditar'] && this.tareaEditar) {
+      console.log('📝 Cargando tarea para edición:', this.tareaEditar);
+      this.modoEdicion = true;
+      this.tarea = {
+        ...this.tareaEditar,
+        fechaInicio: this.tareaEditar.fechaInicio ? this.tareaEditar.fechaInicio.split('T')[0] : '',
+        fechaFin: this.tareaEditar.fechaFin ? this.tareaEditar.fechaFin.split('T')[0] : ''
+      };
+      // Marcar miembros existentes como seleccionados
+      if (this.tareaEditar.miembros) {
+        this.miembrosSeleccionados = this.tareaEditar.miembros.map(m => m.id);
+      }
+      this.cd.detectChanges();
+    } else if (changes['tareaEditar'] && !this.tareaEditar) {
+      this.modoEdicion = false;
+      this.resetFormulario();
     }
   }
 
-  cargarUsuarios() {
+  cargarMiembrosDelProyecto() {
     if (!this.projectId) {
       console.warn('⚠️ No hay projectId.');
       return;
@@ -150,17 +177,13 @@ export class TaskFormComponent implements OnChanges {
 
     this.taskService.getProjectDetails(Number(this.projectId)).subscribe({
       next: (response) => {
-        console.log('📦 Respuesta cruda del backend:', response); // Para debug
-
-        // 1. Extraer el objeto real (Manejo de Array vs Objeto)
+        console.log('📦 Respuesta cruda del backend:', response);
         const rawData = response.data || response;
         const projectData = Array.isArray(rawData) ? rawData[0] : rawData;
 
-        // 2. Validar si encontramos el proyecto y sus miembros
         if (projectData && projectData.members) {
           let miembrosReales = [];
           try {
-            // El backend envía un String JSON, hay que convertirlo
             miembrosReales = typeof projectData.members === 'string' 
               ? JSON.parse(projectData.members) 
               : projectData.members;
@@ -169,14 +192,13 @@ export class TaskFormComponent implements OnChanges {
             miembrosReales = [];
           }
 
-          // 3. Mapear para el dropdown
           this.usuariosDisponibles = miembrosReales.map((m: any) => ({
             id: m.user_id,
-            name: m.name,
-            email: m.email
+            name: m.name
           }));
           
           console.log(`✅ ¡Éxito! ${this.usuariosDisponibles.length} miembros cargados.`);
+          this.cd.detectChanges();
         } else {
           console.warn('⚠️ El proyecto no tiene campo "members" o está vacío.');
           this.usuariosDisponibles = [];
@@ -187,6 +209,16 @@ export class TaskFormComponent implements OnChanges {
         this.usuariosDisponibles = [];
       }
     });
+  }
+
+  toggleMiembro(userId: number) {
+    const index = this.miembrosSeleccionados.indexOf(userId);
+    if (index === -1) {
+      this.miembrosSeleccionados.push(userId);
+    } else {
+      this.miembrosSeleccionados.splice(index, 1);
+    }
+    console.log('👥 Miembros seleccionados:', this.miembrosSeleccionados);
   }
 
   onFileChange(event: any) {
@@ -215,86 +247,161 @@ export class TaskFormComponent implements OnChanges {
     return 'otro';
   }
 
-  seleccionarUsuario(usuario: { id: number; name: string }) {
-    this.usuarioActual = usuario.name;
-    this.tarea.usuario = usuario.id;
-    this.tarea.usuarioNombre = usuario.name;
-    this.mostrarSelectorUsuario = false;
-  }
-
-  crearTarea() {
-    if (!this.usuarioActual) {
-      alert('Por favor, seleccione un usuario antes de crear la tarea');
+  // ========== FLUJO WATERFALL: GUARDAR TAREA ==========
+  guardarTarea() {
+    // VALIDACIONES PREVIAS
+    if (this.miembrosSeleccionados.length === 0) {
+      alert('Por favor, seleccione al menos un miembro');
       return;
     }
+    
     if (!this.projectId) {
       alert('Error crítico: No se ha identificado el proyecto ID.');
+      console.error('❌ projectId es null/undefined:', this.projectId);
       return;
     }
 
-    this.loading = true;
-    this.mensaje = '';
+    if (!this.tarea.titulo || this.tarea.titulo.trim() === '') {
+      alert('El título es obligatorio');
+      return;
+    }
 
-    // 1. TRADUCCIÓN: Español (Frontend) -> Inglés (Backend)
+    // 1. ACTIVAR LOADING
+    this.loading = true;
+    this.mensaje = 'Creando tarea...';
+    console.log('🟢 INICIANDO PROCESO DE GUARDADO');
+
+    // Preparar payload con conversiones explícitas
+    const projectIdNumero = Number(this.projectId);
+    const userIdNumero = Number(this.miembrosSeleccionados[0]);
+
+    // Payload con todos los campos requeridos por el backend
     const payloadBackend = {
-      project_id: this.projectId,
-      title: this.tarea.titulo,
-      description: this.tarea.descripcion,
-      start_date: this.tarea.fechaInicio,
-      end_date: this.tarea.fechaFin,
-      user_id: this.tarea.usuario,
-      role: 'MEMBER'
+      project_id: projectIdNumero,
+      title: this.tarea.titulo.trim(),
+      description: this.tarea.descripcion?.trim() || '',
+      start_date: this.tarea.fechaInicio || null,
+      end_date: this.tarea.fechaFin || null,
+      user_id: userIdNumero,
+      role: 'OWNER'
     };
 
-    console.log('📤 Enviando al backend:', payloadBackend);
+    // DEBUG: Ver exactamente qué estamos enviando
+    console.log('📤 DEBUG - Payload a enviar:', JSON.stringify(payloadBackend, null, 2));
+    console.log('📤 DEBUG - projectId original:', this.projectId, '-> convertido:', projectIdNumero);
+    console.log('📤 DEBUG - user_id original:', this.miembrosSeleccionados[0], '-> convertido:', userIdNumero);
 
-    // 2. Enviar objeto traducido
-    this.taskService.createTask(payloadBackend as any).subscribe({
-      next: (response) => {
-        if (response?.success) {
-          this.mensaje = '¡Tarea creada exitosamente!';
-          
-          if (this.selectedFiles && this.selectedFiles.length > 0 && response.data?.task_id) {
-            this.subirArchivos(response.data.task_id);
-          } else {
-            this.finalizarProceso();
-          }
-        } else {
-          this.mensaje = 'Error al crear: ' + (response.message || 'Desconocido');
-          this.loading = false;
+    // Validar que los números sean válidos
+    if (isNaN(projectIdNumero) || projectIdNumero <= 0) {
+      alert('Error: ID de proyecto inválido');
+      this.loading = false;
+      return;
+    }
+
+    if (isNaN(userIdNumero) || userIdNumero <= 0) {
+      alert('Error: ID de usuario inválido');
+      this.loading = false;
+      return;
+    }
+
+    console.log('📤 PASO 1: Creando tarea...');
+
+    // 2. FLUJO CON FINALIZE (garantiza desbloqueo)
+    this.taskService.createTask(payloadBackend as any).pipe(
+      // PASO 2: Asignar miembros adicionales
+      switchMap((response: any) => {
+        if (!response?.success || !response.data?.task_id) {
+          throw new Error(response?.message || 'Error al crear tarea');
         }
+        
+        const taskId = response.data.task_id;
+        console.log('✅ Tarea creada con ID:', taskId);
+        this.mensaje = 'Asignando miembros...';
+
+        // Miembros adicionales (el primero ya es OWNER)
+        const miembrosAdicionales = this.miembrosSeleccionados.slice(1);
+        
+        if (miembrosAdicionales.length > 0) {
+          const asignaciones = miembrosAdicionales.map(userId => ({
+            user_id: userId,
+            role: 'MEMBER'
+          }));
+          console.log('📤 PASO 2: Asignando', asignaciones.length, 'miembros...');
+          
+          return this.taskService.createTaskAssignation(taskId, asignaciones).pipe(
+            catchError(err => {
+              console.warn('⚠️ Error asignando miembros (continuando):', err);
+              return of(null); // Continuar aunque falle
+            }),
+            switchMap(() => of(taskId)) // Pasar el taskId al siguiente paso
+          );
+        }
+        
+        return of(taskId); // No hay miembros adicionales
+      }),
+
+      // PASO 3: Subir archivos
+      switchMap((taskId: number) => {
+        if (this.selectedFiles && this.selectedFiles.length > 0) {
+          console.log('📤 PASO 3: Subiendo', this.selectedFiles.length, 'archivos...');
+          this.mensaje = 'Subiendo archivos...';
+          
+          return this.taskService.uploadTaskFiles(taskId, this.selectedFiles).pipe(
+            catchError(err => {
+              console.warn('⚠️ Error subiendo archivos (continuando):', err);
+              return of(null); // Continuar aunque falle
+            })
+          );
+        }
+        
+        console.log('📤 PASO 3: Sin archivos para subir');
+        return of(null); // No hay archivos
+      }),
+
+      // FINALIZE: SIEMPRE se ejecuta (éxito o error)
+      finalize(() => {
+        console.log('🏁 FINALIZE: Desbloqueando botón');
+        this.loading = false;
+        this.cd.detectChanges();
+      })
+    ).subscribe({
+      next: () => {
+        console.log('✅ PROCESO COMPLETO - ÉXITO');
+        this.mensaje = '¡Tarea guardada exitosamente!';
+        
+        // Emitir evento y cerrar modal
+        setTimeout(() => {
+          this.tareaCreada.emit();
+          this.cerrar();
+        }, 800);
       },
       error: (error) => {
-        console.error('Error:', error);
-        this.mensaje = 'Error de conexión con el servidor.';
-        this.loading = false;
+        console.error('❌ ERROR EN EL PROCESO:', error);
+        this.mensaje = 'Error: ' + (error?.message || 'Fallo en el proceso');
+        alert('Error al guardar la tarea: ' + (error?.message || 'Revisa la consola'));
       }
     });
   }
 
-  subirArchivos(taskId: number) {
-    this.mensaje += ' Subiendo archivos...';
-    this.taskService.uploadTaskFiles(taskId, this.selectedFiles!).subscribe({
-      next: () => {
-        this.mensaje = '¡Tarea y archivos guardados!';
-        this.finalizarProceso();
-      },
-      error: () => {
-        this.mensaje = 'Tarea creada, pero falló la subida de archivos.';
-        this.finalizarProceso();
-      }
-    });
-  }
-
-  finalizarProceso() {
-    this.loading = false;
-    setTimeout(() => {
-      this.tareaCreada.emit();
-      this.cerrar();
-    }, 1500);
+  resetFormulario() {
+    this.tarea = {
+      titulo: '',
+      descripcion: '',
+      fechaInicio: '',
+      fechaFin: '',
+      usuario: 0,
+      usuarioNombre: '',
+      archivos: [],
+      proyecto: ''
+    };
+    this.miembrosSeleccionados = [];
+    this.selectedFiles = null;
+    this.mensaje = '';
   }
 
   cerrar() {
+    this.resetFormulario();
+    this.modoEdicion = false;
     this.cerrarFormulario.emit();
   }
 }

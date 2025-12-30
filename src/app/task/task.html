@@ -10,13 +10,15 @@
   <!-- Lista de tareas -->
   <task-list
     [projectId]="projectId"
-    (abrirFormulario)="abrirFormulario()">
+    (abrirFormulario)="abrirFormulario()"
+    (editarTareaEvent)="abrirParaEditar($event)">
   </task-list>
 
   <!-- Formulario modal -->
   <task-form
     *ngIf="mostrarFormulario"
     [projectId]="projectId"
+    [tareaEditar]="tareaEnEdicion"
     (cerrarFormulario)="cerrarFormulario()"
     (tareaCreada)="onTareaCreada()">
   </task-form>

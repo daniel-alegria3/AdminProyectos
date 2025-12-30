@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Tarea, Archivo, Miembro } from './models'; // Asegúrate que Miembro y Archivo estén exportados en models.ts
 
@@ -137,14 +137,19 @@ export class TaskService {
   }
 
   createTask(tarea: Partial<Tarea>): Observable<any> {
+    // Si viene con campos en inglés (desde task-form), usarlos directamente
+    // Si viene con campos en español, traducirlos
     const taskData = {
-      title: tarea.titulo,
-      description: tarea.descripcion,
-      start_date: tarea.fechaInicio,
-      end_date: tarea.fechaFin,
-      user_id: tarea.usuario,
-      project_id: 1 // TODO: Verifica si deberías recibir el ID del proyecto dinámicamente
+      project_id: (tarea as any).project_id || (tarea as any).proyecto_id,
+      title: (tarea as any).title || tarea.titulo,
+      description: (tarea as any).description || tarea.descripcion || '',
+      start_date: (tarea as any).start_date || tarea.fechaInicio,
+      end_date: (tarea as any).end_date || tarea.fechaFin,
+      user_id: (tarea as any).user_id || tarea.usuario,
+      role: (tarea as any).role || 'MEMBER'
     };
+
+    console.log('📤 [TaskService] createTask - Enviando:', taskData);
 
     return this.http.post(`${this.apiUrl}/task`, taskData, { 
       headers: this.getHeaders(),
@@ -184,6 +189,41 @@ export class TaskService {
   downloadFile(fileId: number): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/file/${fileId}`, {
       responseType: 'blob', // Importante para archivos PDF/DOC/JPG
+      withCredentials: true
+    });
+  }
+
+  // ==========================================
+  // MÉTODOS DE ASIGNACIÓN DE MIEMBROS
+  // ==========================================
+
+  createTaskAssignation(task_id: number, users: { user_id: number; role: string }[]): Observable<any[]> {
+    if (!users || users.length === 0) {
+      return of([]);
+    }
+    
+    const peticiones = users.map(user => 
+      this.http.post(
+        `${this.apiUrl}/task/assign`,
+        { task_id, user_id: user.user_id, role: user.role || 'MEMBER' },
+        { headers: this.getHeaders(), withCredentials: true }
+      )
+    );
+    
+    return forkJoin(peticiones);
+  }
+
+  deleteTaskAssignation(task_id: number, user_id: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/task/assign`, {
+      headers: this.getHeaders(),
+      withCredentials: true,
+      body: { task_id, user_id }
+    });
+  }
+
+  deleteFile(file_id: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/file/${file_id}`, {
+      headers: this.getHeaders(),
       withCredentials: true
     });
   }
