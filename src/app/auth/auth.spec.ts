@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
@@ -41,6 +41,9 @@ describe('Auth Component', () => {
     component = fixture.componentInstance;
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
     router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+
+    // Mock hashPassword to return a resolved promise immediately
+    spyOn<any>(component, 'hashPassword').and.returnValue(Promise.resolve('hashed_password'));
   });
 
   // Component Creation
@@ -220,7 +223,7 @@ describe('Auth Component', () => {
       expect(authService.login).not.toHaveBeenCalled();
     });
 
-    it('should clear loading state after login completes', () => {
+    it('should clear loading state after login completes', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -234,10 +237,11 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(component.isLoading()).toBe(false);
-    });
+    }));
 
-    it('should call authService.login with valid credentials', () => {
+    it('should call authService.login with valid credentials', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -251,13 +255,14 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(authService.login).toHaveBeenCalledWith({
         email: 'test@example.com',
-        password: 'ValidPassword123!',
+        password: 'hashed_password',
       });
-    });
+    }));
 
-    it('should navigate to projects for non-admin user on successful login', (done) => {
+    it('should navigate to projects for non-admin user on successful login', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -271,14 +276,12 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
+      tick(1100);
+      expect(router.navigate).toHaveBeenCalledWith(['/projects']);
+    }));
 
-      setTimeout(() => {
-        expect(router.navigate).toHaveBeenCalledWith(['/projects']);
-        done();
-      }, 1100);
-    });
-
-    it('should navigate to admin for admin user on successful login', (done) => {
+    it('should navigate to admin for admin user on successful login', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -292,14 +295,12 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
+      tick(1100);
+      expect(router.navigate).toHaveBeenCalledWith(['/admin']);
+    }));
 
-      setTimeout(() => {
-        expect(router.navigate).toHaveBeenCalledWith(['/admin']);
-        done();
-      }, 1100);
-    });
-
-    it('should display success message on successful login', () => {
+    it('should display success message on successful login', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -313,10 +314,11 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(component.successMessage()).toBe('Login successful');
-    });
+    }));
 
-    it('should display error message on failed login', () => {
+    it('should display error message on failed login', fakeAsync(() => {
       const response: AuthResponse = {
         success: false,
         message: 'Invalid credentials',
@@ -329,10 +331,11 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(component.errorMessage()).toBe('Invalid credentials');
-    });
+    }));
 
-    it('should handle login error', () => {
+    it('should handle login error', fakeAsync(() => {
       const errorResponse = {
         error: { message: 'Network error' },
       };
@@ -344,11 +347,12 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(component.errorMessage()).toBe('Network error');
       expect(component.isLoading()).toBe(false);
-    });
+    }));
 
-    it('should clear error message on new login attempt', () => {
+    it('should clear error message on new login attempt', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Login successful',
@@ -363,8 +367,9 @@ describe('Auth Component', () => {
       });
 
       component.onLogin();
+      tick();
       expect(component.errorMessage()).not.toBe('Previous error');
-    });
+    }));
   });
 
   // Register Method
@@ -375,7 +380,7 @@ describe('Auth Component', () => {
       expect(authService.register).not.toHaveBeenCalled();
     });
 
-    it('should call authService.register with valid data', () => {
+    it('should call authService.register with valid data', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Registration successful',
@@ -390,15 +395,16 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
 
       const callArgs = authService.register.calls.mostRecent().args[0];
       expect(callArgs.name).toBe('John Doe');
       expect(callArgs.email).toBe('test@example.com');
-      expect(callArgs.password).toBe('ValidPassword123!');
+      expect(callArgs.password).toBe('hashed_password');
       expect('confirmPassword' in callArgs).toBe(false);
-    });
+    }));
 
-    it('should exclude confirmPassword from register call', () => {
+    it('should exclude confirmPassword from register call', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Registration successful',
@@ -413,12 +419,13 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
 
       const callArgs = authService.register.calls.mostRecent().args[0];
       expect('confirmPassword' in callArgs).toBe(false);
-    });
+    }));
 
-    it('should display success message on successful registration', () => {
+    it('should display success message on successful registration', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Registration successful',
@@ -433,10 +440,11 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
       expect(component.successMessage()).toBe('Registration successful');
-    });
+    }));
 
-    it('should switch to login mode after successful registration', (done) => {
+    it('should switch to login mode after successful registration', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Registration successful',
@@ -452,14 +460,12 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
+      tick(2100);
+      expect(component.isLoginMode()).toBe(true);
+    }));
 
-      setTimeout(() => {
-        expect(component.isLoginMode()).toBe(true);
-        done();
-      }, 2100);
-    });
-
-    it('should reset register form after successful registration', (done) => {
+    it('should reset register form after successful registration', fakeAsync(() => {
       const response: AuthResponse = {
         success: true,
         message: 'Registration successful',
@@ -474,15 +480,13 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
+      tick(2100);
+      expect(component.registerForm.get('name')?.value).toBeNull();
+      expect(component.registerForm.get('email')?.value).toBeNull();
+    }));
 
-      setTimeout(() => {
-        expect(component.registerForm.get('name')?.value).toBeNull();
-        expect(component.registerForm.get('email')?.value).toBeNull();
-        done();
-      }, 2100);
-    });
-
-    it('should display error message on failed registration', () => {
+    it('should display error message on failed registration', fakeAsync(() => {
       const response: AuthResponse = {
         success: false,
         message: 'Email already registered',
@@ -497,10 +501,11 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
       expect(component.errorMessage()).toBe('Email already registered');
-    });
+    }));
 
-    it('should handle registration error', () => {
+    it('should handle registration error', fakeAsync(() => {
       const errorResponse = {
         error: { message: 'Server error' },
       };
@@ -514,9 +519,10 @@ describe('Auth Component', () => {
       });
 
       component.onRegister();
+      tick();
       expect(component.errorMessage()).toBe('Server error');
       expect(component.isLoading()).toBe(false);
-    });
+    }));
   });
 
   // Error Messages
