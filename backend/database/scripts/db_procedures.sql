@@ -245,6 +245,9 @@ CREATE PROCEDURE CreateProject(
 BEGIN
   DECLARE v_project_id int;
 
+  -- Set user context for audit log
+  SET @user_id = p_creator_user_id;
+
   -- Create project
   INSERT INTO Project (title, visibility, description, start_date, end_date)
     VALUES (p_title, p_visibility, p_description, p_start_date, p_end_date);
@@ -271,6 +274,9 @@ CREATE PROCEDURE UpdateProject(
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
+
+  -- Set user context for audit log
+  SET @user_id = p_requesting_user_id;
 
   -- Check if the user is the project owner
   SELECT role
@@ -308,6 +314,9 @@ CREATE PROCEDURE DeleteProject (
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
+
+  -- Set user context for audit log
+  SET @user_id = p_requesting_user_id;
 
   -- Check if the user is the project owner or member
   SELECT role
@@ -538,6 +547,9 @@ CREATE PROCEDURE CreateTask(
 BEGIN
   DECLARE v_task_id int;
   DECLARE v_role VARCHAR(16);
+
+  -- Set user context for audit log
+  SET @user_id = p_creator_user_id;
 
   -- Check if the user is the project owner or member
   SELECT role
@@ -772,6 +784,9 @@ CREATE PROCEDURE UpdateTask(
 BEGIN
   DECLARE v_role VARCHAR(16);
 
+  -- Set user context for audit log
+  SET @user_id = p_requesting_user_id;
+
   -- Check if the user is the task owner or member
   SELECT role
     INTO v_role
@@ -804,6 +819,9 @@ CREATE PROCEDURE DeleteTask(
 )
 BEGIN
   DECLARE v_role VARCHAR(16);
+
+  -- Set user context for audit log
+  SET @user_id = p_requesting_user_id;
 
   -- Check if the user is the task owner or member
   SELECT role
@@ -839,6 +857,9 @@ BEGIN
     SIGNAL SQLSTATE '45000'
       SET MESSAGE_TEXT = 'Invalid progress_status: must be one of the ENUM values defined in Task.progress_status';
   END;
+
+  -- Set user context for audit log
+  SET @user_id = p_requesting_user_id;
 
   -- Check if the user is the task owner or member
   SELECT role

@@ -84,3 +84,23 @@ CREATE TABLE `TaskFile` (
 );
 
 --------------------------------------------------------------------------------
+
+CREATE TABLE `AuditLog` (
+  id_log int PRIMARY KEY AUTO_INCREMENT,
+  entity_type enum('PROJECT', 'TASK') NOT NULL,
+  entity_id int NOT NULL,
+  action enum('CREATE', 'UPDATE', 'DELETE') NOT NULL,
+  id_user int,
+
+  old_values json,
+  new_values json,
+
+  timestamp datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (id_user) REFERENCES `User`(id_user) ON DELETE SET NULL,
+  INDEX idx_entity (entity_type, entity_id),
+  INDEX idx_timestamp (timestamp),
+  INDEX idx_user (id_user)
+);
+
+--------------------------------------------------------------------------------

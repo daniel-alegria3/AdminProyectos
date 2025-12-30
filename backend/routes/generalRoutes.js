@@ -63,4 +63,7 @@ router.post('/file/to_task', userAuth.requireLogin, gc.uploadTaskFile);
 router.get('/file/:file_id', userAuth.requireLogin, gc.downloadFile);
 router.delete('/file/:file_id', userAuth.requireLogin, gc.deleteFile);
 
+/// '/logs'
+router.get('/logs', userAuth.requireAdmin, gc.getLogs);
+
 module.exports = router;

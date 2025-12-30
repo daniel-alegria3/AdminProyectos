@@ -734,6 +734,21 @@ const generalController = {
     'task_id',
     'Task',
   ),
+
+  getLogs: async (req, res) => {
+    try {
+      const [rows] = await db.execute(
+        'SELECT entity_type, entity_id, action, id_user, new_values, timestamp FROM AuditLog ORDER BY timestamp DESC',
+      );
+      res.json({
+        success: true,
+        message: 'Logs recuperados exitosamente',
+        data: rows,
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  },
 };
 
 module.exports = generalController;
